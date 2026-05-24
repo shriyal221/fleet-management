@@ -1,0 +1,46 @@
+services:
+  fleet-db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-fleet_db}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+    ports:
+      - "3306:3306"
+    volumes:
+      - fleet-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  fleet-backend:
+    build:
+      context: ./backend
+    environment:
+      DB_URL: jdbc:mysql://fleet-db:3306/${DB_NAME:-fleet_db}?allowPublicKeyRetrieval=true&useSSL=false
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD:-root}
+      FLEET_JWT_SECRET: ${FLEET_JWT_SECRET:-standalone-fleet-only-change-me-to-a-strong-32-byte-secret}
+      JWT_EXPIRES_MINUTES: ${JWT_EXPIRES_MINUTES:-480}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin123}
+      SEED_DISPATCHER_PASSWORD: ${SEED_DISPATCHER_PASSWORD:-dispatcher123}
+      OSRM_BASE_URL: ${OSRM_BASE_URL:-https://router.project-osrm.org}
+      OSRM_TIMEOUT: ${OSRM_TIMEOUT:-10}
+      OSRM_MAX_WAYPOINTS: ${OSRM_MAX_WAYPOINTS:-12}
+    ports:
+      - "8082:8082"
+    depends_on:
+      fleet-db:
+        condition: service_healthy
+
+  fleet-frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3001:80"
+    depends_on:
+      - fleet-backend
+
+volumes:
+  fleet-mysql-data:
