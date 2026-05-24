@@ -1,0 +1,10 @@
+package com.infotact.fleet.api.dto;
+
+import java.util.List;
+
+public record AuthResponse(
+    String token,
+    String username,
+    List<String> roles,
+    String name
+) {}
