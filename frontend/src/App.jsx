@@ -41,6 +41,7 @@ function App() {
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [registerForm, setRegisterForm] = useState({ username: '', password: '', role: 'DISPATCHER', name: '', email: '', contactNumber: '' });
   const [authMode, setAuthMode] = useState('login');
+  const [showPassword, setShowPassword] = useState(false);
 
   const token = auth?.token;
 
@@ -141,7 +142,12 @@ function App() {
                   </div>
                   <div className="field-group">
                     <label>Password</label>
-                    <input required type="password" placeholder="Enter password" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} />
+                    <div className="password-input-wrapper">
+                      <input required type={showPassword ? "text" : "password"} placeholder="Enter password" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} />
+                      <button type="button" className="password-toggle-btn" onClick={() => setShowPassword(!showPassword)}>
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
                   </div>
                   <button type="submit" disabled={loading}><ShieldCheck size={18} />{loading ? 'Signing in...' : 'Sign In'}</button>
                 </form>
@@ -164,7 +170,12 @@ function App() {
                     </div>
                     <div className="field-group">
                       <label>Password</label>
-                      <input required type="password" placeholder="Min 6 chars" value={registerForm.password} onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })} />
+                      <div className="password-input-wrapper">
+                        <input required type={showPassword ? "text" : "password"} placeholder="Min 6 chars" value={registerForm.password} onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })} />
+                        <button type="button" className="password-toggle-btn" onClick={() => setShowPassword(!showPassword)}>
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="field-row">
