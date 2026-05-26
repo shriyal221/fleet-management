@@ -31,6 +31,9 @@ public class UserService {
         if (userRepository.existsByUsername(request.username())) {
             throw new IllegalArgumentException("Username already exists: " + request.username());
         }
+        if (userRepository.existsByContactNumber(request.contactNumber())) {
+            throw new IllegalArgumentException("Contact number already registered: " + request.contactNumber());
+        }
 
         AppUser user = new AppUser(
                 request.username(),
