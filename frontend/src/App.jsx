@@ -195,6 +195,10 @@ function App() {
                     <label>Email</label>
                     <input type="email" placeholder="email@example.com" value={registerForm.email} onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })} />
                   </div>
+                  <div className="field-group">
+                    <label>Contact Number</label>
+                    <input required type="tel" pattern="^\+?[0-9]{10,15}$" placeholder="Phone (+1234567890)" value={registerForm.contactNumber} onChange={(e) => setRegisterForm({ ...registerForm, contactNumber: e.target.value })} title="Phone number (10-15 digits)" />
+                  </div>
                   <button type="submit" disabled={loading}><UserPlus size={18} />{loading ? 'Registering...' : 'Register'}</button>
                 </form>
                 {message && <div className={`auth-message error`}>{message}</div>}
