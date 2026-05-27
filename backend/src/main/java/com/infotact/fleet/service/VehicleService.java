@@ -8,6 +8,7 @@ import com.infotact.fleet.exception.ResourceNotFoundException;
 import com.infotact.fleet.repository.VehicleRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.Year;
 import java.util.List;
 
 @Service
@@ -29,18 +30,20 @@ public class VehicleService {
 
     @Transactional
     public VehicleResponse create(VehicleRequest request) {
-        if (vehicleRepository.existsByLicensePlate(request.licensePlate())) {
-            throw new IllegalArgumentException("License plate already registered: " + request.licensePlate());
+        validateVehicleRequest(request);
+        String licensePlate = normalize(request.licensePlate());
+        if (vehicleRepository.existsByLicensePlate(licensePlate)) {
+            throw new IllegalArgumentException("License plate already registered: " + licensePlate);
         }
 
         Vehicle vehicle = new Vehicle(
-                request.licensePlate(),
-                request.make(),
-                request.model(),
+                licensePlate,
+                normalize(request.make()),
+                normalize(request.model()),
                 request.year(),
                 request.capacityKg(),
                 request.capacityVolumeCbm(),
-                request.fuelType()
+                normalize(request.fuelType()).toUpperCase()
         );
 
         // Initial seed GPS position: Bengaluru
@@ -52,19 +55,21 @@ public class VehicleService {
     @Transactional
     public VehicleResponse update(Long id, VehicleRequest request) {
         Vehicle vehicle = findOrThrow(id);
+        validateVehicleRequest(request);
+        String licensePlate = normalize(request.licensePlate());
         
-        if (!vehicle.getLicensePlate().equals(request.licensePlate()) && vehicleRepository.existsByLicensePlate(request.licensePlate())) {
-            throw new IllegalArgumentException("License plate already registered: " + request.licensePlate());
+        if (!vehicle.getLicensePlate().equals(licensePlate) && vehicleRepository.existsByLicensePlate(licensePlate)) {
+            throw new IllegalArgumentException("License plate already registered: " + licensePlate);
         }
 
-        vehicle.setLicensePlate(request.licensePlate());
+        vehicle.setLicensePlate(licensePlate);
         vehicle.updateDetails(
-                request.make(),
-                request.model(),
+                normalize(request.make()),
+                normalize(request.model()),
                 request.year(),
                 request.capacityKg(),
                 request.capacityVolumeCbm(),
-                request.fuelType()
+                normalize(request.fuelType()).toUpperCase()
         );
 
         return toResponse(vehicleRepository.save(vehicle));
@@ -118,5 +123,19 @@ public class VehicleService {
                 v.getCurrentLongitude(),
                 v.getCreatedAt()
         );
+    }
+
+    private void validateVehicleRequest(VehicleRequest request) {
+        int nextModelYear = Year.now().getValue() + 1;
+        if (request.year() != null && request.year() > nextModelYear) {
+            throw new IllegalArgumentException("Vehicle year cannot be later than " + nextModelYear + ".");
+        }
+        if (request.capacityVolumeCbm() != null && request.capacityVolumeCbm() < 0) {
+            throw new IllegalArgumentException("Volume capacity cannot be negative.");
+        }
+    }
+
+    private String normalize(String value) {
+        return value == null ? null : value.trim();
     }
 }
