@@ -255,6 +255,17 @@ button:hover {
   box-shadow: 0 4px 20px rgba(14, 165, 233, 0.4);
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+button:disabled:hover {
+  background: var(--primary);
+  transform: none;
+}
+
 button.secondary {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--panel-border);
@@ -299,6 +310,55 @@ input:focus, select:focus, textarea:focus {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
+}
+
+.route-form {
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  align-items: end;
+}
+
+.planning-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.planning-summary div {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.planning-summary strong {
+  color: var(--primary);
+  font-size: 1rem;
+}
+
+.planning-summary span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.warning-note {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  border-radius: var(--radius-sm);
+  color: #fbbf24;
+  font-size: 0.86rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+}
+
+.warning-note p + p {
+  margin-top: 6px;
 }
 
 /* ── Badges ── */
@@ -579,8 +639,14 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ── Tables ── */
+.table-wrap {
+  overflow-x: auto;
+  width: 100%;
+}
+
 table {
   width: 100%;
+  min-width: 980px;
   border-collapse: collapse;
   margin-top: 16px;
 }
@@ -1019,5 +1085,73 @@ tr:hover td {
   }
   .sidebar .brand {
     justify-content: center;
+  }
+  .topbar {
+    padding: 20px;
+    align-items: flex-start;
+    gap: 16px;
+    flex-direction: column;
+  }
+  .view-grid {
+    padding: 20px;
+  }
+  .panel {
+    padding: 22px;
+  }
+  .panel-header {
+    align-items: flex-start;
+    gap: 12px;
+    flex-direction: column;
+  }
+  .route-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    padding: 12px;
+    border-right: none;
+    border-bottom: 1px solid var(--panel-border);
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  .sidebar nav {
+    flex: 1;
+    flex-direction: row;
+    justify-content: flex-end;
+    overflow-x: auto;
+  }
+  .sidebar button.nav-btn {
+    min-width: 44px;
+    padding: 12px;
+    justify-content: center;
+  }
+  .workspace {
+    height: auto;
+    min-height: 100vh;
+  }
+  .fleet-cards {
+    grid-template-columns: 1fr;
+  }
+  .fleet-card-header,
+  .fleet-card-actions,
+  .stop-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .route-metrics,
+  .planning-summary {
+    grid-template-columns: 1fr;
+  }
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+  .auth-panel {
+    padding: 32px 24px;
   }
 }
