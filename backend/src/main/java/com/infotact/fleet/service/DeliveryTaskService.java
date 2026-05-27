@@ -10,6 +10,7 @@ import com.infotact.fleet.exception.ResourceNotFoundException;
 import com.infotact.fleet.repository.DeliveryTaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -35,10 +36,11 @@ public class DeliveryTaskService {
 
     @Transactional
     public DeliveryTaskResponse create(DeliveryTaskRequest request) {
+        validateDeliveryTaskRequest(request);
         DeliveryTask task = new DeliveryTask(
-                request.deliveryAddress(),
-                request.recipientName(),
-                request.recipientPhone(),
+                normalize(request.deliveryAddress()),
+                optionalText(request.recipientName()),
+                optionalText(request.recipientPhone()),
                 request.latitude(),
                 request.longitude(),
                 request.packageWeightKg(),
@@ -54,10 +56,11 @@ public class DeliveryTaskService {
     @Transactional
     public DeliveryTaskResponse update(Long id, DeliveryTaskRequest request) {
         DeliveryTask task = findOrThrow(id);
+        validateDeliveryTaskRequest(request);
         task.updateDetails(
-                request.deliveryAddress(),
-                request.recipientName(),
-                request.recipientPhone(),
+                normalize(request.deliveryAddress()),
+                optionalText(request.recipientName()),
+                optionalText(request.recipientPhone()),
                 request.latitude(),
                 request.longitude(),
                 request.packageWeightKg(),
@@ -115,5 +118,24 @@ public class DeliveryTaskService {
                 t.getRoute() != null ? t.getRoute().getRouteName() : null,
                 t.getCreatedAt()
         );
+    }
+
+    private void validateDeliveryTaskRequest(DeliveryTaskRequest request) {
+        if (request.timeWindowStart() != null && request.timeWindowEnd() != null
+                && !request.timeWindowStart().isBefore(request.timeWindowEnd())) {
+            throw new IllegalArgumentException("Delivery time window start must be before time window end.");
+        }
+        if (request.timeWindowEnd() != null && request.timeWindowEnd().isBefore(Instant.now())) {
+            throw new IllegalArgumentException("Delivery time window end cannot be in the past.");
+        }
+    }
+
+    private String normalize(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private String optionalText(String value) {
+        String normalized = normalize(value);
+        return normalized == null || normalized.isBlank() ? null : normalized;
     }
 }
