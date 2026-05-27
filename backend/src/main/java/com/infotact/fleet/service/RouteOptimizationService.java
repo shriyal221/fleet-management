@@ -10,13 +10,18 @@ import com.infotact.fleet.repository.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class RouteOptimizationService {
@@ -33,6 +38,12 @@ public class RouteOptimizationService {
 
     @Value("${fleet.fuel-efficiency.petrol-km-per-liter:10.0}")
     private double petrolKmPerLiter;
+
+    @Value("${fleet.route.average-speed-kmh:40.0}")
+    private double averageRouteSpeedKmh;
+
+    @Value("${fleet.osrm.max-waypoints:12}")
+    private int maxWaypoints;
 
     public RouteOptimizationService(RouteRepository routeRepository,
                                     DeliveryTaskRepository taskRepository,
@@ -58,6 +69,11 @@ public class RouteOptimizationService {
 
     @Transactional
     public RouteResponse optimizeRoute(RouteOptimizationRequest request) {
+        Set<Long> uniqueTaskIds = new HashSet<>(request.deliveryTaskIds());
+        if (uniqueTaskIds.size() != request.deliveryTaskIds().size()) {
+            throw new IllegalArgumentException("Delivery task list contains duplicate stops.");
+        }
+
         Vehicle vehicle = vehicleRepository.findById(request.vehicleId())
                 .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found: " + request.vehicleId()));
         Driver driver = driverRepository.findById(request.driverId())
@@ -71,6 +87,12 @@ public class RouteOptimizationService {
         if (tasks.isEmpty()) {
             throw new IllegalArgumentException("At least one delivery task is required.");
         }
+        if (tasks.size() + 1 > maxWaypoints) {
+            throw new IllegalArgumentException("Route exceeds maximum supported waypoint count of " + maxWaypoints + ".");
+        }
+
+        Instant plannedDeparture = request.plannedDepartureTime() != null ? request.plannedDepartureTime() : Instant.now();
+        validateRouteInputs(vehicle, driver, tasks, plannedDeparture);
 
         // Determine depot coordinates (Default Bengaluru coordinates if not provided)
         double depotLat = request.startLatitude() != null ? request.startLatitude() : 12.9716;
@@ -94,6 +116,7 @@ public class RouteOptimizationService {
 
         // Apply 2-opt improvement
         order = twoOptImprove(distanceMatrix, order);
+        validateTimeWindows(tasks, order, distanceMatrix, plannedDeparture);
 
         // Build optimized coordinate list for route summary
         List<double[]> optimizedCoords = new ArrayList<>();
@@ -106,6 +129,7 @@ public class RouteOptimizationService {
         Map<String, Double> routeSummary = osrmClient.getRouteSummary(optimizedCoords);
         double totalDistanceKm = routeSummary.get("distance") / 1000.0;
         int estimatedMinutes = (int) Math.ceil(routeSummary.get("duration") / 60.0);
+        validateRouteCompletesWithinShift(driver, plannedDeparture, estimatedMinutes);
 
         // Calculate fuel estimate
         double fuelEstimate = calculateFuelEstimate(totalDistanceKm, vehicle.getFuelType());
@@ -273,6 +297,111 @@ public class RouteOptimizationService {
             from++;
             to--;
         }
+    }
+
+    private void validateRouteInputs(Vehicle vehicle, Driver driver, List<DeliveryTask> tasks, Instant plannedDeparture) {
+        if (vehicle.getMaintenanceStatus() != VehicleMaintenanceStatus.OPERATIONAL) {
+            throw new IllegalArgumentException("Vehicle " + vehicle.getLicensePlate() + " is not operational.");
+        }
+        if (routeRepository.existsByVehicleIdAndStatus(vehicle.getId(), RouteStatus.ACTIVE)) {
+            throw new IllegalArgumentException("Vehicle " + vehicle.getLicensePlate() + " is already assigned to an active route.");
+        }
+        if (driver.getStatus() != DriverStatus.AVAILABLE) {
+            throw new IllegalArgumentException("Driver " + driver.getName() + " is not available.");
+        }
+        if (!driver.isLicenseValid()) {
+            throw new IllegalArgumentException("Driver " + driver.getName() + " has an expired license.");
+        }
+        if (routeRepository.existsByDriverIdAndStatus(driver.getId(), RouteStatus.ACTIVE)) {
+            throw new IllegalArgumentException("Driver " + driver.getName() + " is already assigned to an active route.");
+        }
+        if (driver.getAssignedVehicle() != null && driver.getAssignedVehicle().getId() != null
+                && vehicle.getId() != null && !driver.getAssignedVehicle().getId().equals(vehicle.getId())) {
+            throw new IllegalArgumentException("Driver " + driver.getName() + " is assigned to vehicle "
+                    + driver.getAssignedVehicle().getLicensePlate() + ", not " + vehicle.getLicensePlate() + ".");
+        }
+        if (!isInsideShift(driver, plannedDeparture)) {
+            throw new IllegalArgumentException("Planned departure is outside driver " + driver.getName() + "'s configured shift.");
+        }
+
+        double totalWeightKg = 0.0;
+        double totalVolumeCbm = 0.0;
+        for (DeliveryTask task : tasks) {
+            if (task.getRoute() != null || task.getDeliveryStatus() != DeliveryStatus.UNASSIGNED) {
+                throw new IllegalArgumentException("Delivery task " + task.getId() + " is not available for route planning.");
+            }
+            if (task.getPackageWeightKg() != null) {
+                totalWeightKg += task.getPackageWeightKg();
+            }
+            if (task.getPackageVolumeCbm() != null) {
+                totalVolumeCbm += task.getPackageVolumeCbm();
+            }
+        }
+
+        if (totalWeightKg > vehicle.getCapacityKg()) {
+            throw new IllegalArgumentException("Selected deliveries weigh " + round(totalWeightKg)
+                    + " kg, exceeding vehicle capacity of " + round(vehicle.getCapacityKg()) + " kg.");
+        }
+        if (totalVolumeCbm > 0 && vehicle.getCapacityVolumeCbm() == null) {
+            throw new IllegalArgumentException("Selected deliveries require volume capacity, but the vehicle volume capacity is not configured.");
+        }
+        if (vehicle.getCapacityVolumeCbm() != null && totalVolumeCbm > vehicle.getCapacityVolumeCbm()) {
+            throw new IllegalArgumentException("Selected deliveries use " + round(totalVolumeCbm)
+                    + " m3, exceeding vehicle volume capacity of " + round(vehicle.getCapacityVolumeCbm()) + " m3.");
+        }
+    }
+
+    private void validateTimeWindows(List<DeliveryTask> tasks, int[] order, double[][] distanceMatrix, Instant plannedDeparture) {
+        Instant currentArrival = plannedDeparture;
+        double speedMetersPerSecond = (averageRouteSpeedKmh * 1000.0) / 3600.0;
+
+        for (int i = 1; i < order.length; i++) {
+            int previousIndex = order[i - 1];
+            int currentIndex = order[i];
+            long travelSeconds = (long) Math.ceil(distanceMatrix[previousIndex][currentIndex] / speedMetersPerSecond);
+            currentArrival = currentArrival.plusSeconds(Math.max(0, travelSeconds));
+
+            DeliveryTask task = tasks.get(currentIndex - 1);
+            if (task.getTimeWindowStart() != null && currentArrival.isBefore(task.getTimeWindowStart())) {
+                currentArrival = task.getTimeWindowStart();
+            }
+            if (task.getTimeWindowEnd() != null && currentArrival.isAfter(task.getTimeWindowEnd())) {
+                throw new IllegalArgumentException("Delivery task " + task.getId()
+                        + " cannot be reached before its delivery time window closes.");
+            }
+        }
+    }
+
+    private void validateRouteCompletesWithinShift(Driver driver, Instant plannedDeparture, int estimatedMinutes) {
+        if (driver.getShiftStart() == null || driver.getShiftEnd() == null) {
+            return;
+        }
+        Instant estimatedCompletion = plannedDeparture.plusSeconds(estimatedMinutes * 60L);
+        if (!isInsideShift(driver, estimatedCompletion)) {
+            throw new IllegalArgumentException("Estimated route completion is outside driver " + driver.getName() + "'s configured shift.");
+        }
+    }
+
+    private boolean isInsideShift(Driver driver, Instant instant) {
+        if (driver.getShiftStart() == null || driver.getShiftEnd() == null) {
+            return true;
+        }
+        LocalTime time = instant.atZone(ZoneId.systemDefault()).toLocalTime();
+        return isWithinShift(time, driver.getShiftStart(), driver.getShiftEnd());
+    }
+
+    private boolean isWithinShift(LocalTime time, LocalTime start, LocalTime end) {
+        if (start.equals(end)) {
+            return false;
+        }
+        if (start.isBefore(end)) {
+            return !time.isBefore(start) && !time.isAfter(end);
+        }
+        return !time.isBefore(start) || !time.isAfter(end);
+    }
+
+    private double round(double value) {
+        return Math.round(value * 100.0) / 100.0;
     }
 
     private double calculateFuelEstimate(double distanceKm, String fuelType) {
