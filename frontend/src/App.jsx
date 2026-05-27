@@ -13,7 +13,7 @@ import {
   EyeOff,
   UserPlus
 } from 'lucide-react';
-import { useEffect, useMemo, useState, memo } from 'react';
+import { useCallback, useEffect, useMemo, useState, memo } from 'react';
 import { apiRequest } from './api.js';
 
 const tabs = [
@@ -22,6 +22,17 @@ const tabs = [
   { id: 'deliveries', label: 'Deliveries', icon: MapPin },
   { id: 'routes', label: 'Route Planner', icon: Navigation }
 ];
+
+function toDateTimeLocalValue(date) {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 16);
+}
+
+function formatTimeWindow(start, end) {
+  if (!start && !end) return '-';
+  const format = (value) => value ? new Date(value).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Open';
+  return `${format(start)} to ${format(end)}`;
+}
 
 function App() {
   const [auth, setAuth] = useState(() => {
@@ -45,13 +56,7 @@ function App() {
 
   const token = auth?.token;
 
-  useEffect(() => {
-    if (token) {
-      loadAll();
-    }
-  }, [token]);
-
-  async function run(action, successMsg) {
+  const run = useCallback(async (action, successMsg) => {
     setLoading(true);
     setMessage('');
     try {
@@ -64,9 +69,9 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     await run(async () => {
       const [nextVehicles, nextDrivers, nextDeliveries, nextRoutes, nextDashboard] = await Promise.all([
         apiRequest('/vehicles', { token }),
@@ -81,7 +86,16 @@ function App() {
       setRoutes(nextRoutes);
       setDashboardData(nextDashboard);
     }, null);
-  }
+  }, [run, token]);
+
+  useEffect(() => {
+    if (token) {
+      const timeoutId = window.setTimeout(() => {
+        loadAll();
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
+    }
+  }, [loadAll, token]);
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -120,12 +134,12 @@ function App() {
           <div className="auth-hero">
             <div className="hero-icon"><ShieldCheck size={32} /></div>
             <h1>Fleet Dispatcher</h1>
-            <p>Enterprise Fleet Telematics, Shift Scheduling, and TSP Route Optimization Engine.</p>
+            <p>Fleet registry, driver shift planning, manual GPS updates, and OSRM-assisted route optimization.</p>
             <div className="hero-features">
               <div className="hero-feature"><CheckCircle2 size={18} /> OSRM Route Optimization Matrix</div>
               <div className="hero-feature"><CheckCircle2 size={18} /> Driver & Shift Scheduling</div>
+              <div className="hero-feature"><CheckCircle2 size={18} /> Capacity & Time Window Validation</div>
               <div className="hero-feature"><CheckCircle2 size={18} /> Package Delivery State Machine</div>
-              <div className="hero-feature"><CheckCircle2 size={18} /> Consolidated Delivery Manifests</div>
             </div>
           </div>
           <div className="auth-panel">
@@ -378,8 +392,8 @@ const FleetView = memo(function FleetView({ token, vehicles, drivers, loadAll, r
             <input required placeholder="Make (e.g. Tata)" value={vForm.make} onChange={(e) => setVForm({ ...vForm, make: e.target.value })} />
             <input required placeholder="Model" value={vForm.model} onChange={(e) => setVForm({ ...vForm, model: e.target.value })} />
             <input required type="number" placeholder="Year" value={vForm.year} onChange={(e) => setVForm({ ...vForm, year: Number(e.target.value) })} />
-            <input required type="number" placeholder="Weight Limit (kg)" value={vForm.capacityKg} onChange={(e) => setVForm({ ...vForm, capacityKg: Number(e.target.value) })} />
-            <input type="number" placeholder="Volume Limit (m³)" value={vForm.capacityVolumeCbm} onChange={(e) => setVForm({ ...vForm, capacityVolumeCbm: Number(e.target.value) })} />
+            <input required type="number" min="1" step="any" placeholder="Weight Limit (kg)" value={vForm.capacityKg} onChange={(e) => setVForm({ ...vForm, capacityKg: Number(e.target.value) })} />
+            <input type="number" min="0" step="any" placeholder="Volume Limit (m3)" value={vForm.capacityVolumeCbm} onChange={(e) => setVForm({ ...vForm, capacityVolumeCbm: Number(e.target.value) })} />
             <select value={vForm.fuelType} onChange={(e) => setVForm({ ...vForm, fuelType: e.target.value })}>
               <option value="DIESEL">Diesel</option>
               <option value="PETROL">Petrol</option>
@@ -402,7 +416,7 @@ const FleetView = memo(function FleetView({ token, vehicles, drivers, loadAll, r
               </div>
               <div className="fleet-card-body">
                 <div className="fleet-card-stat"><label>Weight Capacity</label><span>{v.capacityKg} kg</span></div>
-                <div className="fleet-card-stat"><label>Vol Capacity</label><span>{v.capacityVolumeCbm || '-'} m³</span></div>
+                <div className="fleet-card-stat"><label>Vol Capacity</label><span>{v.capacityVolumeCbm || '-'} m3</span></div>
                 <div className="fleet-card-stat"><label>Fuel Type</label><span>{v.fuelType}</span></div>
                 <div className="fleet-card-stat"><label>Odometer</label><span>{v.currentOdometerKm?.toFixed(1) || 0} km</span></div>
               </div>
@@ -473,20 +487,26 @@ const FleetView = memo(function FleetView({ token, vehicles, drivers, loadAll, r
 /* ── 3. Deliveries View ── */
 const DeliveriesView = memo(function DeliveriesView({ token, deliveryTasks, loadAll, run }) {
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ deliveryAddress: '', recipientName: '', recipientPhone: '', latitude: '', longitude: '', packageWeightKg: '', packageVolumeCbm: '', notes: '' });
+  const emptyDeliveryForm = { deliveryAddress: '', recipientName: '', recipientPhone: '', latitude: '', longitude: '', packageWeightKg: '', packageVolumeCbm: '', timeWindowStart: '', timeWindowEnd: '', notes: '' };
+  const [form, setForm] = useState(emptyDeliveryForm);
 
   async function handleSubmit(e) {
     e.preventDefault();
     await run(async () => {
+      if (form.timeWindowStart && form.timeWindowEnd && new Date(form.timeWindowStart) >= new Date(form.timeWindowEnd)) {
+        throw new Error('Window Start must be before Window End.');
+      }
       const body = {
         ...form,
         latitude: Number(form.latitude),
         longitude: Number(form.longitude),
         packageWeightKg: form.packageWeightKg ? Number(form.packageWeightKg) : null,
-        packageVolumeCbm: form.packageVolumeCbm ? Number(form.packageVolumeCbm) : null
+        packageVolumeCbm: form.packageVolumeCbm ? Number(form.packageVolumeCbm) : null,
+        timeWindowStart: form.timeWindowStart ? new Date(form.timeWindowStart).toISOString() : null,
+        timeWindowEnd: form.timeWindowEnd ? new Date(form.timeWindowEnd).toISOString() : null
       };
       await apiRequest('/deliveries', { method: 'POST', token, body });
-      setForm({ deliveryAddress: '', recipientName: '', recipientPhone: '', latitude: '', longitude: '', packageWeightKg: '', packageVolumeCbm: '', notes: '' });
+      setForm(emptyDeliveryForm);
       setShowForm(false);
       await loadAll();
     }, 'Delivery Task added successfully.');
@@ -523,13 +543,22 @@ const DeliveriesView = memo(function DeliveriesView({ token, deliveryTasks, load
             <input placeholder="Recipient Phone" value={form.recipientPhone} onChange={(e) => setForm({ ...form, recipientPhone: e.target.value })} />
             <input required type="number" step="any" placeholder="Latitude (e.g. 12.9716)" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} />
             <input required type="number" step="any" placeholder="Longitude (e.g. 77.5946)" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} />
-            <input type="number" step="any" placeholder="Weight (kg)" value={form.packageWeightKg} onChange={(e) => setForm({ ...form, packageWeightKg: e.target.value })} />
-            <input type="number" step="any" placeholder="Volume (m³)" value={form.packageVolumeCbm} onChange={(e) => setForm({ ...form, packageVolumeCbm: e.target.value })} />
+            <input type="number" min="0" step="any" placeholder="Weight (kg)" value={form.packageWeightKg} onChange={(e) => setForm({ ...form, packageWeightKg: e.target.value })} />
+            <input type="number" min="0" step="any" placeholder="Volume (m3)" value={form.packageVolumeCbm} onChange={(e) => setForm({ ...form, packageVolumeCbm: e.target.value })} />
+            <div className="field-group">
+              <label>Window Start</label>
+              <input type="datetime-local" value={form.timeWindowStart} onChange={(e) => setForm({ ...form, timeWindowStart: e.target.value })} />
+            </div>
+            <div className="field-group">
+              <label>Window End</label>
+              <input type="datetime-local" value={form.timeWindowEnd} onChange={(e) => setForm({ ...form, timeWindowEnd: e.target.value })} />
+            </div>
             <input placeholder="Notes / Instruction" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             <button type="submit">Create Stop</button>
           </form>
         )}
 
+        <div className="table-wrap">
         <table>
           <thead>
             <tr>
@@ -538,6 +567,7 @@ const DeliveriesView = memo(function DeliveriesView({ token, deliveryTasks, load
               <th>Recipient</th>
               <th>Coordinates</th>
               <th>Weight (kg)</th>
+              <th>Time Window</th>
               <th>Status</th>
               <th>Route ID</th>
               <th>Actions</th>
@@ -554,6 +584,7 @@ const DeliveriesView = memo(function DeliveriesView({ token, deliveryTasks, load
                 </td>
                 <td><span className="gps-badge"><MapPin size={12} /> {t.latitude?.toFixed(4)}, {t.longitude?.toFixed(4)}</span></td>
                 <td>{t.packageWeightKg || '-'}</td>
+                <td>{formatTimeWindow(t.timeWindowStart, t.timeWindowEnd)}</td>
                 <td><span className={statusClass(t.deliveryStatus)}>{t.deliveryStatus}</span></td>
                 <td>{t.routeName || '-'}</td>
                 <td>
@@ -569,6 +600,7 @@ const DeliveriesView = memo(function DeliveriesView({ token, deliveryTasks, load
             ))}
           </tbody>
         </table>
+        </div>
         {deliveryTasks.length === 0 && <div className="empty-state"><MapPin size={40} /><p>No delivery tasks found.</p></div>}
       </section>
     </div>
@@ -581,9 +613,55 @@ const RoutesView = memo(function RoutesView({ token, routes, vehicles, drivers, 
   const [selectedTasks, setSelectedTasks] = useState([]);
   const [vId, setVId] = useState('');
   const [dId, setDId] = useState('');
+  const [plannedDeparture, setPlannedDeparture] = useState(() => toDateTimeLocalValue(new Date(Date.now() + 30 * 60000)));
   const [expandedRoute, setExpandedRoute] = useState(null);
 
   const unassignedTasks = useMemo(() => deliveryTasks.filter(t => t.deliveryStatus === 'UNASSIGNED' && !t.routeId), [deliveryTasks]);
+  const selectedTaskDetails = useMemo(() => unassignedTasks.filter(t => selectedTasks.includes(t.id)), [unassignedTasks, selectedTasks]);
+  const selectedVehicle = useMemo(() => vehicles.find(v => String(v.id) === String(vId)), [vehicles, vId]);
+  const selectedDriver = useMemo(() => drivers.find(d => String(d.id) === String(dId)), [drivers, dId]);
+  const selectedLoad = useMemo(() => selectedTaskDetails.reduce((totals, task) => ({
+    weightKg: totals.weightKg + Number(task.packageWeightKg || 0),
+    volumeCbm: totals.volumeCbm + Number(task.packageVolumeCbm || 0)
+  }), { weightKg: 0, volumeCbm: 0 }), [selectedTaskDetails]);
+  const routeValidationErrors = useMemo(() => {
+    const errors = [];
+    if (selectedVehicle) {
+      if (selectedVehicle.maintenanceStatus !== 'OPERATIONAL') {
+        errors.push('Selected vehicle is not operational.');
+      }
+      if (selectedLoad.weightKg > Number(selectedVehicle.capacityKg || 0)) {
+        errors.push(`Load weight ${selectedLoad.weightKg.toFixed(1)} kg exceeds vehicle capacity ${Number(selectedVehicle.capacityKg || 0).toFixed(1)} kg.`);
+      }
+      if (selectedLoad.volumeCbm > 0 && selectedVehicle.capacityVolumeCbm == null) {
+        errors.push('Selected load has volume, but vehicle volume capacity is missing.');
+      }
+      if (selectedVehicle.capacityVolumeCbm != null && selectedLoad.volumeCbm > Number(selectedVehicle.capacityVolumeCbm)) {
+        errors.push(`Load volume ${selectedLoad.volumeCbm.toFixed(1)} m3 exceeds vehicle capacity ${Number(selectedVehicle.capacityVolumeCbm).toFixed(1)} m3.`);
+      }
+    }
+    if (selectedDriver) {
+      if (selectedDriver.status !== 'AVAILABLE') {
+        errors.push('Selected driver is not available.');
+      }
+      if (!selectedDriver.licenseValid) {
+        errors.push('Selected driver license is expired.');
+      }
+      if (selectedVehicle && selectedDriver.assignedVehicleId && selectedDriver.assignedVehicleId !== selectedVehicle.id) {
+        errors.push(`Selected driver is assigned to ${selectedDriver.assignedVehiclePlate}, not ${selectedVehicle.licensePlate}.`);
+      }
+    }
+    if (plannedDeparture) {
+      const departureDate = new Date(plannedDeparture);
+      selectedTaskDetails.forEach(task => {
+        if (task.timeWindowEnd && departureDate > new Date(task.timeWindowEnd)) {
+          errors.push(`Stop ${task.id} already missed its delivery window.`);
+        }
+      });
+    }
+    return errors;
+  }, [plannedDeparture, selectedDriver, selectedLoad, selectedTaskDetails, selectedVehicle]);
+  const canOptimize = selectedTasks.length > 0 && vId && dId && plannedDeparture && routeValidationErrors.length === 0;
 
   function toggleTask(id) {
     setSelectedTasks(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
@@ -592,18 +670,23 @@ const RoutesView = memo(function RoutesView({ token, routes, vehicles, drivers, 
   async function optimizeRoute(e) {
     e.preventDefault();
     await run(async () => {
+      if (!canOptimize) {
+        throw new Error(routeValidationErrors[0] || 'Please complete the route plan.');
+      }
       await apiRequest('/routes/optimize', {
         method: 'POST',
         token,
         body: {
           deliveryTaskIds: selectedTasks,
           vehicleId: Number(vId),
-          driverId: Number(dId)
+          driverId: Number(dId),
+          plannedDepartureTime: new Date(plannedDeparture).toISOString()
         }
       });
       setSelectedTasks([]);
       setVId('');
       setDId('');
+      setPlannedDeparture(toDateTimeLocalValue(new Date(Date.now() + 30 * 60000)));
       setShowPlanner(false);
       await loadAll();
     }, 'Route optimized successfully!');
@@ -633,7 +716,7 @@ const RoutesView = memo(function RoutesView({ token, routes, vehicles, drivers, 
 
         {showPlanner && (
           <div style={{ marginBottom: 30 }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>Select unassigned delivery stops, then choose a driver and truck to construct a TSP optimized sequence.</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>Select unassigned delivery stops, then choose a compatible truck, driver, and departure time. The planner checks capacity, driver license, assigned vehicle, shift, and delivery windows before optimizing.</p>
             {unassignedTasks.length > 0 ? (
               <div className="stop-list" style={{ marginBottom: 20 }}>
                 {unassignedTasks.map(t => (
@@ -641,7 +724,7 @@ const RoutesView = memo(function RoutesView({ token, routes, vehicles, drivers, 
                     <input type="checkbox" checked={selectedTasks.includes(t.id)} onChange={() => toggleTask(t.id)} style={{ width: 18, height: 18, minHeight: 18 }} />
                     <div className="stop-info">
                       <h5>{t.deliveryAddress}</h5>
-                      <p>{t.recipientName || 'Unassigned'} • {t.packageWeightKg || 0} kg</p>
+                      <p>{t.recipientName || 'Unassigned'} - {t.packageWeightKg || 0} kg - {formatTimeWindow(t.timeWindowStart, t.timeWindowEnd)}</p>
                     </div>
                     <span className="gps-badge"><MapPin size={12} /> {t.latitude.toFixed(4)}, {t.longitude.toFixed(4)}</span>
                   </label>
@@ -652,13 +735,24 @@ const RoutesView = memo(function RoutesView({ token, routes, vehicles, drivers, 
             )}
 
             {selectedTasks.length > 0 && (
-              <form onSubmit={optimizeRoute} className="form-grid" style={{ gridTemplateColumns: '1fr 1fr auto', alignItems: 'end' }}>
+              <>
+              <div className="planning-summary">
+                <div><strong>{selectedTasks.length}</strong><span>Stops</span></div>
+                <div><strong>{selectedLoad.weightKg.toFixed(1)} kg</strong><span>Total Weight</span></div>
+                <div><strong>{selectedLoad.volumeCbm.toFixed(1)} m3</strong><span>Total Volume</span></div>
+              </div>
+              {routeValidationErrors.length > 0 && (
+                <div className="warning-note">
+                  {routeValidationErrors.map(error => <p key={error}>{error}</p>)}
+                </div>
+              )}
+              <form onSubmit={optimizeRoute} className="form-grid route-form">
                 <div className="field-group">
                   <label>Select Operational Vehicle</label>
                   <select required value={vId} onChange={(e) => setVId(e.target.value)}>
                     <option value="">Choose Vehicle</option>
                     {vehicles.filter(v => v.maintenanceStatus === 'OPERATIONAL').map(v => (
-                      <option key={v.id} value={v.id}>{v.licensePlate} ({v.make} {v.model})</option>
+                      <option key={v.id} value={v.id}>{v.licensePlate} ({v.capacityKg} kg / {v.capacityVolumeCbm || '-'} m3)</option>
                     ))}
                   </select>
                 </div>
@@ -666,13 +760,18 @@ const RoutesView = memo(function RoutesView({ token, routes, vehicles, drivers, 
                   <label>Select Available Driver</label>
                   <select required value={dId} onChange={(e) => setDId(e.target.value)}>
                     <option value="">Choose Driver</option>
-                    {drivers.filter(d => d.status === 'AVAILABLE').map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
+                    {drivers.filter(d => d.status === 'AVAILABLE' && d.licenseValid).map(d => (
+                      <option key={d.id} value={d.id}>{d.name}{d.assignedVehiclePlate ? ` - ${d.assignedVehiclePlate}` : ''}</option>
                     ))}
                   </select>
                 </div>
-                <button type="submit" style={{ height: 48 }}><Navigation size={14} /> Calculate TSP Route</button>
+                <div className="field-group">
+                  <label>Planned Departure</label>
+                  <input required type="datetime-local" value={plannedDeparture} onChange={(e) => setPlannedDeparture(e.target.value)} />
+                </div>
+                <button type="submit" disabled={!canOptimize} style={{ height: 48 }}><Navigation size={14} /> Calculate Route</button>
               </form>
+              </>
             )}
           </div>
         )}
