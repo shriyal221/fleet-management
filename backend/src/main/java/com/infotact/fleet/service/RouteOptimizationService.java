@@ -7,6 +7,8 @@ import com.infotact.fleet.api.dto.RouteResponse;
 import com.infotact.fleet.domain.*;
 import com.infotact.fleet.exception.ResourceNotFoundException;
 import com.infotact.fleet.repository.*;
+import com.infotact.fleet.service.optimization.TwoOptStrategy;
+import com.infotact.fleet.service.optimization.RouteScoringSystem;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,7 +18,6 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -24,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 
 @Service
+@SuppressWarnings("null")
 public class RouteOptimizationService {
 
     private final RouteRepository routeRepository;
@@ -33,6 +35,8 @@ public class RouteOptimizationService {
     private final DeliveryTaskService deliveryTaskService;
     private final OsrmClient osrmClient;
     private final AuditService auditService;
+    private final TwoOptStrategy routeOptimizationStrategy;
+    private final RouteScoringSystem routeScoringSystem;
 
     @Value("${fleet.fuel-efficiency.diesel-km-per-liter:8.0}")
     private double dieselKmPerLiter;
@@ -52,7 +56,9 @@ public class RouteOptimizationService {
                                     DriverRepository driverRepository,
                                     DeliveryTaskService deliveryTaskService,
                                     OsrmClient osrmClient,
-                                    AuditService auditService) {
+                                    AuditService auditService,
+                                    TwoOptStrategy routeOptimizationStrategy,
+                                    RouteScoringSystem routeScoringSystem) {
         this.routeRepository = routeRepository;
         this.taskRepository = taskRepository;
         this.vehicleRepository = vehicleRepository;
@@ -60,10 +66,28 @@ public class RouteOptimizationService {
         this.deliveryTaskService = deliveryTaskService;
         this.osrmClient = osrmClient;
         this.auditService = auditService;
+        this.routeOptimizationStrategy = routeOptimizationStrategy;
+        this.routeScoringSystem = routeScoringSystem;
     }
 
     public List<RouteResponse> listAll() {
         return routeRepository.findAll().stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<RouteResponse> listAll(String status, String search, org.springframework.data.domain.Pageable pageable) {
+        RouteStatus routeStatus = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                routeStatus = RouteStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // Ignore
+            }
+        }
+        String searchQuery = (search != null && !search.isBlank()) ? "%" + search.trim().toLowerCase() + "%" : null;
+        return routeRepository.searchRoutes(routeStatus, searchQuery, pageable)
+                .map(this::toResponse)
+                .getContent();
     }
 
     public RouteResponse getById(Long id) {
@@ -102,7 +126,6 @@ public class RouteOptimizationService {
         double depotLng = request.startLongitude() != null ? request.startLongitude() : 77.5946;
 
         // Build coordinates: [depot, task1, task2, ...]
-        // OSRM expects [longitude, latitude]
         List<double[]> coordinates = new ArrayList<>();
         coordinates.add(new double[]{depotLng, depotLat});
         for (DeliveryTask task : tasks) {
@@ -113,12 +136,8 @@ public class RouteOptimizationService {
         Map<String, double[][]> matrix = osrmClient.getDistanceMatrix(coordinates);
         double[][] distanceMatrix = matrix.get("distances");
 
-        // Apply Nearest Neighbor heuristic (starting from depot = index 0)
-        int n = coordinates.size();
-        int[] order = nearestNeighbor(distanceMatrix, n);
-
-        // Apply 2-opt improvement
-        order = twoOptImprove(distanceMatrix, order);
+        // Apply pluggable route optimization strategy
+        int[] order = routeOptimizationStrategy.optimize(distanceMatrix, tasks, vehicle, depotLat, depotLng);
         validateTimeWindows(tasks, order, distanceMatrix, plannedDeparture);
 
         // Build optimized coordinate list for route summary
@@ -149,6 +168,11 @@ public class RouteOptimizationService {
                 buildWaypointOrderJson(tasks, order)
         );
 
+        // Calculate dynamic route score
+        double trafficPenalty = Math.random() * 0.15; // simulated minor traffic penalty
+        double score = routeScoringSystem.calculateScore(route, tasks, trafficPenalty);
+        route.setRouteScore(score);
+
         route = routeRepository.save(route);
 
         // Assign tasks to route in optimized order
@@ -159,7 +183,7 @@ public class RouteOptimizationService {
             taskRepository.save(task);
         }
 
-        auditService.log("ROUTE_OPTIMIZE", "Optimized route: " + route.getRouteName() + " (Stops: " + tasks.size() + ", Dist: " + route.getTotalDistanceKm() + " km)");
+        auditService.log("ROUTE_OPTIMIZE", "Optimized route: " + route.getRouteName() + " (Stops: " + tasks.size() + ", Dist: " + route.getTotalDistanceKm() + " km, Score: " + route.getRouteScore() + ")");
         return toResponse(route);
     }
 
@@ -227,82 +251,6 @@ public class RouteOptimizationService {
                 routes.stream().filter(r -> r.getStatus() == RouteStatus.PLANNED).count(),
                 routes.stream().filter(r -> r.getStatus() == RouteStatus.COMPLETED).count()
         );
-    }
-
-    // ---- TSP Heuristic Implementations ----
-
-    private int[] nearestNeighbor(double[][] distMatrix, int n) {
-        boolean[] visited = new boolean[n];
-        int[] order = new int[n];
-        order[0] = 0;
-        visited[0] = true;
-
-        for (int step = 1; step < n; step++) {
-            int current = order[step - 1];
-            int nearest = -1;
-            double nearestDist = Double.MAX_VALUE;
-
-            for (int j = 0; j < n; j++) {
-                if (!visited[j] && distMatrix[current][j] < nearestDist) {
-                    nearestDist = distMatrix[current][j];
-                    nearest = j;
-                }
-            }
-
-            if (nearest == -1) {
-                // Fallback: pick any unvisited
-                for (int j = 0; j < n; j++) {
-                    if (!visited[j]) {
-                        nearest = j;
-                        break;
-                    }
-                }
-            }
-
-            order[step] = nearest;
-            visited[nearest] = true;
-        }
-
-        return order;
-    }
-
-    private int[] twoOptImprove(double[][] distMatrix, int[] order) {
-        int n = order.length;
-        if (n <= 3) {
-            return order;
-        }
-
-        int[] improved = Arrays.copyOf(order, n);
-        boolean madeImprovement = true;
-
-        while (madeImprovement) {
-            madeImprovement = false;
-            for (int i = 1; i < n - 1; i++) {
-                for (int j = i + 1; j < n; j++) {
-                    double currentDist = distMatrix[improved[i - 1]][improved[i]]
-                            + distMatrix[improved[j]][improved[(j + 1) % n]];
-                    double newDist = distMatrix[improved[i - 1]][improved[j]]
-                            + distMatrix[improved[i]][improved[(j + 1) % n]];
-
-                    if (newDist < currentDist - 0.01) {
-                        reverse(improved, i, j);
-                        madeImprovement = true;
-                    }
-                }
-            }
-        }
-
-        return improved;
-    }
-
-    private void reverse(int[] arr, int from, int to) {
-        while (from < to) {
-            int temp = arr[from];
-            arr[from] = arr[to];
-            arr[to] = temp;
-            from++;
-            to--;
-        }
     }
 
     private void validateRouteInputs(Vehicle vehicle, Driver driver, List<DeliveryTask> tasks, Instant plannedDeparture) {
@@ -461,6 +409,7 @@ public class RouteOptimizationService {
                 r.getTotalDistanceKm(),
                 r.getEstimatedDurationMinutes(),
                 r.getTotalFuelEstimateLiters(),
+                r.getRouteScore(),
                 r.getStartLatitude(),
                 r.getStartLongitude(),
                 stops.size(),

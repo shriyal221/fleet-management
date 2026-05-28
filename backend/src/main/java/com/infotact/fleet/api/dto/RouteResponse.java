@@ -14,6 +14,7 @@ public record RouteResponse(
     Double totalDistanceKm,
     Integer estimatedDurationMinutes,
     Double totalFuelEstimateLiters,
+    Double routeScore,
     Double startLatitude,
     Double startLongitude,
     Integer stopCount,

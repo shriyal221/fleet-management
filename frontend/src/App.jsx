@@ -11,17 +11,18 @@ import {
   ShieldCheck,
   Eye,
   EyeOff,
-  UserPlus
+  UserPlus,
+  Search,
+  SlidersHorizontal,
+  Compass,
+  AlertCircle
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, memo } from 'react';
-import { apiRequest } from './api.js';
-
-const tabs = [
-  { id: 'dashboard', label: 'Dashboard', icon: Truck },
-  { id: 'fleet', label: 'Fleet Registry', icon: Users2 },
-  { id: 'deliveries', label: 'Deliveries', icon: MapPin },
-  { id: 'routes', label: 'Route Planner', icon: Navigation }
-];
+import { apiRequest, API_URL } from './api.js';
+import { AnalyticsCharts } from './components/AnalyticsCharts.jsx';
+import { GpsTrackerMap } from './components/GpsTrackerMap.jsx';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 function toDateTimeLocalValue(date) {
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
@@ -49,12 +50,49 @@ function App() {
   const [routes, setRoutes] = useState([]);
   const [dashboardData, setDashboardData] = useState(null);
 
+  // Search & Pagination States
+  const [vSearch, setVSearch] = useState('');
+  const [vStatus, setVStatus] = useState('');
+  const [vPage, setVPage] = useState(0);
+
+  const [dSearch, setDSearch] = useState('');
+  const [dStatus, setDStatus] = useState('');
+  const [dPage, setDPage] = useState(0);
+
+  const [tSearch, setTSearch] = useState('');
+  const [tStatus, setTStatus] = useState('');
+  const [tPage, setTPage] = useState(0);
+
+  const [rSearch, setRSearch] = useState('');
+  const [rStatus, setRStatus] = useState('');
+  const [rPage, setRPage] = useState(0);
+
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [registerForm, setRegisterForm] = useState({ username: '', password: '', role: 'DISPATCHER', name: '', email: '', contactNumber: '' });
   const [authMode, setAuthMode] = useState('login');
   const [showPassword, setShowPassword] = useState(false);
 
   const token = auth?.token;
+  const userRole = auth?.roles?.[0] || 'DRIVER';
+
+  // Role permissions checks
+  const isAdmin = userRole === 'ADMIN';
+  const isDispatcher = userRole === 'DISPATCHER';
+  const isDriver = userRole === 'DRIVER';
+
+  // Available tabs based on roles
+  const tabs = useMemo(() => {
+    const allTabs = [
+      { id: 'dashboard', label: 'Dashboard', icon: Truck },
+      { id: 'fleet', label: 'Fleet Registry', icon: Users2 },
+      { id: 'deliveries', label: 'Deliveries', icon: MapPin },
+      { id: 'routes', label: 'Route Planner', icon: Navigation }
+    ];
+    if (isDriver) {
+      return allTabs.filter(t => t.id === 'dashboard' || t.id === 'routes');
+    }
+    return allTabs;
+  }, [isDriver]);
 
   const run = useCallback(async (action, successMsg) => {
     setLoading(true);
@@ -73,11 +111,12 @@ function App() {
 
   const loadAll = useCallback(async () => {
     await run(async () => {
+      // 100% Backwards compatible fetch that includes backend-side searching & pagination
       const [nextVehicles, nextDrivers, nextDeliveries, nextRoutes, nextDashboard] = await Promise.all([
-        apiRequest('/vehicles', { token }),
-        apiRequest('/drivers', { token }),
-        apiRequest('/deliveries', { token }),
-        apiRequest('/routes', { token }),
+        apiRequest(`/vehicles?search=${vSearch}&status=${vStatus}&page=${vPage}&size=10`, { token }),
+        apiRequest(`/drivers?search=${dSearch}&status=${dStatus}&page=${dPage}&size=10`, { token }),
+        apiRequest(`/deliveries?search=${tSearch}&status=${tStatus}&page=${tPage}&size=10`, { token }),
+        apiRequest(`/routes?search=${rSearch}&status=${rStatus}&page=${rPage}&size=10`, { token }),
         apiRequest('/routes/dashboard', { token })
       ]);
       setVehicles(nextVehicles);
@@ -86,14 +125,43 @@ function App() {
       setRoutes(nextRoutes);
       setDashboardData(nextDashboard);
     }, null);
-  }, [run, token]);
+  }, [run, token, vSearch, vStatus, vPage, dSearch, dStatus, dPage, tSearch, tStatus, tPage, rSearch, rStatus, rPage]);
+
+  // Handle live WebSocket coordinates via STOMP broker
+  useEffect(() => {
+    if (!token) return;
+
+    // Establish WebSocket using SockJS fallback
+    const socketUrl = `${API_URL}/ws`.replace('/api', '');
+    const client = new Client({
+      brokerURL: socketUrl.startsWith('https') ? socketUrl.replace('https', 'wss') : socketUrl.replace('http', 'ws'),
+      webSocketFactory: () => new SockJS(socketUrl),
+      reconnectDelay: 5000,
+      onConnect: () => {
+        console.log('radar STOMP active!');
+        client.subscribe('/topic/gps', (message) => {
+          const payload = JSON.parse(message.body);
+          // Live coordinates slide animation hook
+          setVehicles(prev =>
+            prev.map(v =>
+              v.id === payload.vehicleId
+                ? { ...v, currentLatitude: payload.latitude, currentLongitude: payload.longitude }
+                : v
+            )
+          );
+          // Refresh list to update delivery stops states in background
+          loadAll();
+        });
+      }
+    });
+
+    client.activate();
+    return () => client.deactivate();
+  }, [token, loadAll]);
 
   useEffect(() => {
     if (token) {
-      const timeoutId = window.setTimeout(() => {
-        loadAll();
-      }, 0);
-      return () => window.clearTimeout(timeoutId);
+      loadAll();
     }
   }, [loadAll, token]);
 
@@ -134,12 +202,12 @@ function App() {
           <div className="auth-hero">
             <div className="hero-icon"><ShieldCheck size={32} /></div>
             <h1>Fleet Dispatcher</h1>
-            <p>Fleet registry, driver shift planning, manual GPS updates, and OSRM-assisted route optimization.</p>
+            <p>Professional Fleet Registry, pluggable strategy route scoring, and live STOMP WebSocket coordinate simulation.</p>
             <div className="hero-features">
-              <div className="hero-feature"><CheckCircle2 size={18} /> OSRM Route Optimization Matrix</div>
-              <div className="hero-feature"><CheckCircle2 size={18} /> Driver & Shift Scheduling</div>
-              <div className="hero-feature"><CheckCircle2 size={18} /> Capacity & Time Window Validation</div>
-              <div className="hero-feature"><CheckCircle2 size={18} /> Package Delivery State Machine</div>
+              <div className="hero-feature"><CheckCircle2 size={18} /> Pluggable Strategy Optimization Matrix</div>
+              <div className="hero-feature"><CheckCircle2 size={18} /> Dynamic Route Score Analysis</div>
+              <div className="hero-feature"><CheckCircle2 size={18} /> STOMP Live Coordinate Simulations</div>
+              <div className="hero-feature"><CheckCircle2 size={18} /> Propagation-Independent Audit Logs</div>
             </div>
           </div>
           <div className="auth-panel">
@@ -174,7 +242,7 @@ function App() {
               <>
                 <div className="auth-header">
                   <h2>Create Account</h2>
-                  <p>Register a standalone dispatcher credentials</p>
+                  <p>Register dispatcher credentials</p>
                 </div>
                 <form onSubmit={handleRegister} className="auth-form">
                   <div className="field-row">
@@ -255,26 +323,98 @@ function App() {
             </p>
             <h2>{tabs.find((t) => t.id === activeTab)?.label}</h2>
           </div>
-          <div className="topbar-actions">
+          <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {message && <p className="message" style={{ fontSize: '0.9rem', color: '#38bdf8', fontWeight: 600 }}>{message}</p>}
-            <button onClick={loadAll} disabled={loading} title="Refresh data">
-              <RefreshCw size={18} className={loading ? 'spin-anim' : ''} />
+            <button onClick={loadAll} disabled={loading} title="Refresh data" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: 'auto', height: '38px', borderRadius: '20px', padding: '0 16px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--panel-border)', color: 'var(--text-main)', cursor: 'pointer', transition: 'all var(--transition)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={loading ? 'spin-anim' : ''} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                <path d="M16 16h5v5" />
+              </svg>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.02em' }}>Refresh</span>
             </button>
-            <button onClick={handleLogout} title="Sign out">
-              <LogOut size={18} />
+            <button onClick={handleLogout} title="Sign out" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: 'auto', height: '38px', borderRadius: '20px', padding: '0 16px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--panel-border)', color: 'var(--text-main)', cursor: 'pointer', transition: 'all var(--transition)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.02em' }}>Sign Out</span>
             </button>
           </div>
         </header>
 
-        {activeTab === 'dashboard' && <Dashboard data={dashboardData} />}
-        {activeTab === 'fleet' && (
-          <FleetView token={token} vehicles={vehicles} drivers={drivers} loadAll={loadAll} run={run} />
+        {activeTab === 'dashboard' && (
+          <div className="view-grid">
+            <Dashboard data={dashboardData} />
+            
+            {/* Live GPS tracking radar showing Simulated trucks live */}
+            <div className="panel wide" style={{ border: '1px solid rgba(14, 165, 233, 0.15)' }}>
+              <GpsTrackerMap vehicles={vehicles} deliveryTasks={deliveryTasks} routes={routes} />
+            </div>
+
+            {/* Premium Recharts Analytical summaries */}
+            <AnalyticsCharts vehicles={vehicles} drivers={drivers} routes={routes} deliveryTasks={deliveryTasks} />
+          </div>
         )}
-        {activeTab === 'deliveries' && (
-          <DeliveriesView token={token} deliveryTasks={deliveryTasks} loadAll={loadAll} run={run} />
+        
+        {activeTab === 'fleet' && !isDriver && (
+          <FleetView
+            token={token}
+            vehicles={vehicles}
+            drivers={drivers}
+            loadAll={loadAll}
+            run={run}
+            isAdmin={isAdmin}
+            vSearch={vSearch}
+            setVSearch={setVSearch}
+            vStatus={vStatus}
+            setVStatus={setVStatus}
+            vPage={vPage}
+            setVPage={setVPage}
+            dSearch={dSearch}
+            setDSearch={setDSearch}
+            dStatus={dStatus}
+            setDStatus={setDStatus}
+            dPage={dPage}
+            setDPage={setDPage}
+          />
         )}
+        
+        {activeTab === 'deliveries' && !isDriver && (
+          <DeliveriesView
+            token={token}
+            deliveryTasks={deliveryTasks}
+            loadAll={loadAll}
+            run={run}
+            tSearch={tSearch}
+            setTSearch={setTSearch}
+            tStatus={tStatus}
+            setTStatus={setTStatus}
+            tPage={tPage}
+            setTPage={setTPage}
+          />
+        )}
+        
         {activeTab === 'routes' && (
-          <RoutesView token={token} routes={routes} vehicles={vehicles} drivers={drivers} deliveryTasks={deliveryTasks} loadAll={loadAll} run={run} />
+          <RoutesView
+            token={token}
+            routes={routes}
+            vehicles={vehicles}
+            drivers={drivers}
+            deliveryTasks={deliveryTasks}
+            loadAll={loadAll}
+            run={run}
+            isDriver={isDriver}
+            driverName={auth.name}
+            rSearch={rSearch}
+            setRSearch={setRSearch}
+            rStatus={rStatus}
+            setRStatus={setRStatus}
+            rPage={rPage}
+            setRPage={setRPage}
+          />
         )}
       </section>
     </main>
@@ -286,7 +426,7 @@ const Dashboard = memo(function Dashboard({ data }) {
   if (!data) return <div className="empty-state"><RefreshCw size={40} /><p>Loading dashboard metrics...</p></div>;
 
   return (
-    <div className="view-grid">
+    <>
       <section className="metric-strip">
         <div className="metric-card">
           <div className="metric-icon-wrapper"><Truck size={24} /></div>
@@ -317,7 +457,7 @@ const Dashboard = memo(function Dashboard({ data }) {
           <div className="fleet-summary-card"><span className="number">{data.activeRoutes}</span><span className="label">Active Routes</span></div>
         </div>
       </section>
-    </div>
+    </>
   );
 });
 
@@ -326,7 +466,26 @@ function statusClass(status) {
   return 'status ' + status.toLowerCase().replace(/_/g, '-');
 }
 
-const FleetView = memo(function FleetView({ token, vehicles, drivers, loadAll, run }) {
+const FleetView = memo(function FleetView({
+  token,
+  vehicles,
+  drivers,
+  loadAll,
+  run,
+  isAdmin,
+  vSearch,
+  setVSearch,
+  vStatus,
+  setVStatus,
+  vPage,
+  setVPage,
+  dSearch,
+  setDSearch,
+  dStatus,
+  setDStatus,
+  dPage,
+  setDPage
+}) {
   const [showVForm, setShowVForm] = useState(false);
   const [showDForm, setShowDForm] = useState(false);
 
@@ -364,7 +523,7 @@ const FleetView = memo(function FleetView({ token, vehicles, drivers, loadAll, r
     await run(async () => {
       await apiRequest(`/vehicles/${vId}/status`, { method: 'PATCH', token, body: { status: next } });
       await loadAll();
-    }, `Vehicle is now marked ${next.replace('_', ' ')}.`);
+    }, `Vehicle marked ${next.replace('_', ' ')}.`);
   }
 
   async function assignVehicle(dId, vId) {
@@ -382,8 +541,22 @@ const FleetView = memo(function FleetView({ token, vehicles, drivers, loadAll, r
     <div className="view-grid">
       <section className="panel wide">
         <div className="panel-header">
-          <h3>Vehicle Registry ({vehicles.length})</h3>
+          <h3>Vehicle Registry</h3>
           <button onClick={() => setShowVForm(!showVForm)}><Plus size={16} /> {showVForm ? 'Cancel' : 'Register Vehicle'}</button>
+        </div>
+
+        {/* Searching & Filtering controls */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '14px', top: '15px', color: 'var(--text-muted)' }} />
+            <input placeholder="Search make, model, license plate..." value={vSearch} onChange={(e) => { setVSearch(e.target.value); setVPage(0); }} style={{ paddingLeft: '40px' }} />
+          </div>
+          <select value={vStatus} onChange={(e) => { setVStatus(e.target.value); setVPage(0); }} style={{ width: '180px' }}>
+            <option value="">All Statuses</option>
+            <option value="OPERATIONAL">Operational</option>
+            <option value="IN_MAINTENANCE">In Maintenance</option>
+            <option value="SCHEDULED_MAINTENANCE">Scheduled Maintenance</option>
+          </select>
         </div>
 
         {showVForm && (
@@ -427,14 +600,33 @@ const FleetView = memo(function FleetView({ token, vehicles, drivers, loadAll, r
               </div>
             </div>
           ))}
-          {vehicles.length === 0 && <div className="empty-state" style={{ gridColumn: '1/-1' }}><Truck size={40} /><p>No vehicles registered in fleet.</p></div>}
+          {vehicles.length === 0 && <div className="empty-state" style={{ gridColumn: '1/-1' }}><Truck size={40} /><p>No matching vehicles found.</p></div>}
+        </div>
+
+        {/* Pagination Controls */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+          <button className="secondary" disabled={vPage === 0} onClick={() => setVPage(v => v - 1)}>Prev</button>
+          <button className="secondary" disabled={vehicles.length < 10} onClick={() => setVPage(v => v + 1)}>Next</button>
         </div>
       </section>
 
       <section className="panel wide">
         <div className="panel-header">
-          <h3>Driver Manifest Registry ({drivers.length})</h3>
+          <h3>Driver Manifest Registry</h3>
           <button onClick={() => setShowDForm(!showDForm)}><Plus size={16} /> {showDForm ? 'Cancel' : 'Register Driver'}</button>
+        </div>
+
+        {/* Search controls */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '14px', top: '15px', color: 'var(--text-muted)' }} />
+            <input placeholder="Search driver name, license, email..." value={dSearch} onChange={(e) => { setDSearch(e.target.value); setDPage(0); }} style={{ paddingLeft: '40px' }} />
+          </div>
+          <select value={dStatus} onChange={(e) => { setDStatus(e.target.value); setDPage(0); }} style={{ width: '180px' }}>
+            <option value="">All Statuses</option>
+            <option value="AVAILABLE">Available</option>
+            <option value="ON_ROUTE">On Route</option>
+          </select>
         </div>
 
         {showDForm && (
@@ -477,7 +669,13 @@ const FleetView = memo(function FleetView({ token, vehicles, drivers, loadAll, r
               </div>
             </div>
           ))}
-          {drivers.length === 0 && <div className="empty-state" style={{ gridColumn: '1/-1' }}><Users2 size={40} /><p>No drivers profile saved.</p></div>}
+          {drivers.length === 0 && <div className="empty-state" style={{ gridColumn: '1/-1' }}><Users2 size={40} /><p>No matching drivers found.</p></div>}
+        </div>
+
+        {/* Pagination Controls */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+          <button className="secondary" disabled={dPage === 0} onClick={() => setDPage(v => v - 1)}>Prev</button>
+          <button className="secondary" disabled={drivers.length < 10} onClick={() => setDPage(v => v + 1)}>Next</button>
         </div>
       </section>
     </div>
@@ -485,7 +683,18 @@ const FleetView = memo(function FleetView({ token, vehicles, drivers, loadAll, r
 });
 
 /* ── 3. Deliveries View ── */
-const DeliveriesView = memo(function DeliveriesView({ token, deliveryTasks, loadAll, run }) {
+const DeliveriesView = memo(function DeliveriesView({
+  token,
+  deliveryTasks,
+  loadAll,
+  run,
+  tSearch,
+  setTSearch,
+  tStatus,
+  setTStatus,
+  tPage,
+  setTPage
+}) {
   const [showForm, setShowForm] = useState(false);
   const emptyDeliveryForm = { deliveryAddress: '', recipientName: '', recipientPhone: '', latitude: '', longitude: '', packageWeightKg: '', packageVolumeCbm: '', timeWindowStart: '', timeWindowEnd: '', notes: '' };
   const [form, setForm] = useState(emptyDeliveryForm);
@@ -536,6 +745,22 @@ const DeliveriesView = memo(function DeliveriesView({ token, deliveryTasks, load
           <button onClick={() => setShowForm(!showForm)}><Plus size={16} /> {showForm ? 'Cancel' : 'New Outbound Stop'}</button>
         </div>
 
+        {/* Searching & Filtering controls */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '14px', top: '15px', color: 'var(--text-muted)' }} />
+            <input placeholder="Search destination, recipient..." value={tSearch} onChange={(e) => { setTSearch(e.target.value); setTPage(0); }} style={{ paddingLeft: '40px' }} />
+          </div>
+          <select value={tStatus} onChange={(e) => { setTStatus(e.target.value); setTPage(0); }} style={{ width: '180px' }}>
+            <option value="">All Statuses</option>
+            <option value="UNASSIGNED">Unassigned</option>
+            <option value="DISPATCHED">Dispatched</option>
+            <option value="IN_TRANSIT">In Transit</option>
+            <option value="DELIVERED">Delivered</option>
+            <option value="FAILED">Failed</option>
+          </select>
+        </div>
+
         {showForm && (
           <form onSubmit={handleSubmit} className="form-grid" style={{ marginBottom: 30 }}>
             <input required placeholder="Delivery Address" value={form.deliveryAddress} onChange={(e) => setForm({ ...form, deliveryAddress: e.target.value })} />
@@ -559,62 +784,92 @@ const DeliveriesView = memo(function DeliveriesView({ token, deliveryTasks, load
         )}
 
         <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Destination Address</th>
-              <th>Recipient</th>
-              <th>Coordinates</th>
-              <th>Weight (kg)</th>
-              <th>Time Window</th>
-              <th>Status</th>
-              <th>Route ID</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {deliveryTasks.map((t) => (
-              <tr key={t.id}>
-                <td>{t.id}</td>
-                <td>{t.deliveryAddress}</td>
-                <td>
-                  <strong>{t.recipientName || 'Unassigned'}</strong>
-                  {t.recipientPhone && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t.recipientPhone}</div>}
-                </td>
-                <td><span className="gps-badge"><MapPin size={12} /> {t.latitude?.toFixed(4)}, {t.longitude?.toFixed(4)}</span></td>
-                <td>{t.packageWeightKg || '-'}</td>
-                <td>{formatTimeWindow(t.timeWindowStart, t.timeWindowEnd)}</td>
-                <td><span className={statusClass(t.deliveryStatus)}>{t.deliveryStatus}</span></td>
-                <td>{t.routeName || '-'}</td>
-                <td>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    {getCandidateTransitions(t.deliveryStatus).map(st => (
-                      <button key={st} className="secondary" style={{ fontSize: '0.75rem', padding: '6px 12px', minHeight: 28 }} onClick={() => updateStatus(t.id, st)}>
-                        {st}
-                      </button>
-                    ))}
-                  </div>
-                </td>
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Destination Address</th>
+                <th>Recipient</th>
+                <th>Coordinates</th>
+                <th>Weight (kg)</th>
+                <th>Time Window</th>
+                <th>Status</th>
+                <th>Route ID</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {deliveryTasks.map((t) => (
+                <tr key={t.id}>
+                  <td>{t.id}</td>
+                  <td>{t.deliveryAddress}</td>
+                  <td>
+                    <strong>{t.recipientName || 'Unassigned'}</strong>
+                    {t.recipientPhone && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t.recipientPhone}</div>}
+                  </td>
+                  <td><span className="gps-badge"><MapPin size={12} /> {t.latitude?.toFixed(4)}, {t.longitude?.toFixed(4)}</span></td>
+                  <td>{t.packageWeightKg || '-'}</td>
+                  <td>{formatTimeWindow(t.timeWindowStart, t.timeWindowEnd)}</td>
+                  <td><span className={statusClass(t.deliveryStatus)}>{t.deliveryStatus}</span></td>
+                  <td>{t.routeName || '-'}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {getCandidateTransitions(t.deliveryStatus).map(st => (
+                        <button key={st} className="secondary" style={{ fontSize: '0.75rem', padding: '6px 12px', minHeight: 28 }} onClick={() => updateStatus(t.id, st)}>
+                          {st}
+                        </button>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
         {deliveryTasks.length === 0 && <div className="empty-state"><MapPin size={40} /><p>No delivery tasks found.</p></div>}
+
+        {/* Pagination */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+          <button className="secondary" disabled={tPage === 0} onClick={() => setTPage(v => v - 1)}>Prev</button>
+          <button className="secondary" disabled={deliveryTasks.length < 10} onClick={() => setTPage(v => v + 1)}>Next</button>
+        </div>
       </section>
     </div>
   );
 });
 
 /* ── 4. Routes View ── */
-const RoutesView = memo(function RoutesView({ token, routes, vehicles, drivers, deliveryTasks, loadAll, run }) {
+const RoutesView = memo(function RoutesView({
+  token,
+  routes,
+  vehicles,
+  drivers,
+  deliveryTasks,
+  loadAll,
+  run,
+  isDriver,
+  driverName,
+  rSearch,
+  setRSearch,
+  rStatus,
+  setRStatus,
+  rPage,
+  setRPage
+}) {
   const [showPlanner, setShowPlanner] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState([]);
   const [vId, setVId] = useState('');
   const [dId, setDId] = useState('');
   const [plannedDeparture, setPlannedDeparture] = useState(() => toDateTimeLocalValue(new Date(Date.now() + 30 * 60000)));
   const [expandedRoute, setExpandedRoute] = useState(null);
+
+  // Filter routes if role is DRIVER to only show their assigned routes!
+  const filteredRoutes = useMemo(() => {
+    if (isDriver) {
+      return routes.filter(r => r.driverName === driverName);
+    }
+    return routes;
+  }, [routes, isDriver, driverName]);
 
   const unassignedTasks = useMemo(() => deliveryTasks.filter(t => t.deliveryStatus === 'UNASSIGNED' && !t.routeId), [deliveryTasks]);
   const selectedTaskDetails = useMemo(() => unassignedTasks.filter(t => selectedTasks.includes(t.id)), [unassignedTasks, selectedTasks]);
@@ -624,6 +879,7 @@ const RoutesView = memo(function RoutesView({ token, routes, vehicles, drivers, 
     weightKg: totals.weightKg + Number(task.packageWeightKg || 0),
     volumeCbm: totals.volumeCbm + Number(task.packageVolumeCbm || 0)
   }), { weightKg: 0, volumeCbm: 0 }), [selectedTaskDetails]);
+
   const routeValidationErrors = useMemo(() => {
     const errors = [];
     if (selectedVehicle) {
@@ -661,6 +917,7 @@ const RoutesView = memo(function RoutesView({ token, routes, vehicles, drivers, 
     }
     return errors;
   }, [plannedDeparture, selectedDriver, selectedLoad, selectedTaskDetails, selectedVehicle]);
+
   const canOptimize = selectedTasks.length > 0 && vId && dId && plannedDeparture && routeValidationErrors.length === 0;
 
   function toggleTask(id) {
@@ -696,25 +953,55 @@ const RoutesView = memo(function RoutesView({ token, routes, vehicles, drivers, 
     await run(async () => {
       await apiRequest(`/routes/${rId}/dispatch`, { method: 'POST', token });
       await loadAll();
-    }, 'Route dispatched & drivers assigned.');
+    }, 'Route dispatched successfully.');
   }
 
   async function completeRoute(rId) {
     await run(async () => {
       await apiRequest(`/routes/${rId}/complete`, { method: 'POST', token });
       await loadAll();
-    }, 'Route completed & logs successfully saved.');
+    }, 'Route completed & odometer updated.');
+  }
+
+  // Update status for drivers
+  async function updateStopStatus(taskId, nextStatus) {
+    await run(async () => {
+      await apiRequest(`/deliveries/${taskId}/status`, {
+        method: 'PATCH',
+        token,
+        body: { status: nextStatus }
+      });
+      await loadAll();
+    }, `Stop marked ${nextStatus}`);
   }
 
   return (
     <div className="view-grid">
       <section className="panel wide">
         <div className="panel-header">
-          <h3>Active Routes ({routes.length})</h3>
-          <button onClick={() => setShowPlanner(!showPlanner)}><Navigation size={16} /> {showPlanner ? 'Cancel' : 'Plan Optimized Route'}</button>
+          <h3>Optimized Delivery Routes</h3>
+          {!isDriver && (
+            <button onClick={() => setShowPlanner(!showPlanner)}><Navigation size={16} /> {showPlanner ? 'Cancel' : 'Plan Optimized Route'}</button>
+          )}
         </div>
 
-        {showPlanner && (
+        {/* Searching & Filtering controls */}
+        {!isDriver && (
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+              <Search size={16} style={{ position: 'absolute', left: '14px', top: '15px', color: 'var(--text-muted)' }} />
+              <input placeholder="Search route name, driver, vehicle..." value={rSearch} onChange={(e) => { setRSearch(e.target.value); setRPage(0); }} style={{ paddingLeft: '40px' }} />
+            </div>
+            <select value={rStatus} onChange={(e) => { setRStatus(e.target.value); setRPage(0); }} style={{ width: '180px' }}>
+              <option value="">All Statuses</option>
+              <option value="PLANNED">Planned</option>
+              <option value="ACTIVE">Active</option>
+              <option value="COMPLETED">Completed</option>
+            </select>
+          </div>
+        )}
+
+        {showPlanner && !isDriver && (
           <div style={{ marginBottom: 30 }}>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>Select unassigned delivery stops, then choose a compatible truck, driver, and departure time. The planner checks capacity, driver license, assigned vehicle, shift, and delivery windows before optimizing.</p>
             {unassignedTasks.length > 0 ? (
@@ -736,52 +1023,66 @@ const RoutesView = memo(function RoutesView({ token, routes, vehicles, drivers, 
 
             {selectedTasks.length > 0 && (
               <>
-              <div className="planning-summary">
-                <div><strong>{selectedTasks.length}</strong><span>Stops</span></div>
-                <div><strong>{selectedLoad.weightKg.toFixed(1)} kg</strong><span>Total Weight</span></div>
-                <div><strong>{selectedLoad.volumeCbm.toFixed(1)} m3</strong><span>Total Volume</span></div>
-              </div>
-              {routeValidationErrors.length > 0 && (
-                <div className="warning-note">
-                  {routeValidationErrors.map(error => <p key={error}>{error}</p>)}
+                <div className="planning-summary">
+                  <div><strong>{selectedTasks.length}</strong><span>Stops</span></div>
+                  <div><strong>{selectedLoad.weightKg.toFixed(1)} kg</strong><span>Total Weight</span></div>
+                  <div><strong>{selectedLoad.volumeCbm.toFixed(1)} m3</strong><span>Total Volume</span></div>
                 </div>
-              )}
-              <form onSubmit={optimizeRoute} className="form-grid route-form">
-                <div className="field-group">
-                  <label>Select Operational Vehicle</label>
-                  <select required value={vId} onChange={(e) => setVId(e.target.value)}>
-                    <option value="">Choose Vehicle</option>
-                    {vehicles.filter(v => v.maintenanceStatus === 'OPERATIONAL').map(v => (
-                      <option key={v.id} value={v.id}>{v.licensePlate} ({v.capacityKg} kg / {v.capacityVolumeCbm || '-'} m3)</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field-group">
-                  <label>Select Available Driver</label>
-                  <select required value={dId} onChange={(e) => setDId(e.target.value)}>
-                    <option value="">Choose Driver</option>
-                    {drivers.filter(d => d.status === 'AVAILABLE' && d.licenseValid).map(d => (
-                      <option key={d.id} value={d.id}>{d.name}{d.assignedVehiclePlate ? ` - ${d.assignedVehiclePlate}` : ''}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field-group">
-                  <label>Planned Departure</label>
-                  <input required type="datetime-local" value={plannedDeparture} onChange={(e) => setPlannedDeparture(e.target.value)} />
-                </div>
-                <button type="submit" disabled={!canOptimize} style={{ height: 48 }}><Navigation size={14} /> Calculate Route</button>
-              </form>
+                {routeValidationErrors.length > 0 && (
+                  <div className="warning-note">
+                    {routeValidationErrors.map(error => <p key={error}>{error}</p>)}
+                  </div>
+                )}
+                <form onSubmit={optimizeRoute} className="form-grid route-form">
+                  <div className="field-group">
+                    <label>Select Operational Vehicle</label>
+                    <select required value={vId} onChange={(e) => setVId(e.target.value)}>
+                      <option value="">Choose Vehicle</option>
+                      {vehicles.filter(v => v.maintenanceStatus === 'OPERATIONAL').map(v => (
+                        <option key={v.id} value={v.id}>{v.licensePlate} ({v.capacityKg} kg / {v.capacityVolumeCbm || '-'} m3)</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field-group">
+                    <label>Select Available Driver</label>
+                    <select required value={dId} onChange={(e) => setDId(e.target.value)}>
+                      <option value="">Choose Driver</option>
+                      {drivers.filter(d => d.status === 'AVAILABLE' && d.licenseValid).map(d => (
+                        <option key={d.id} value={d.id}>{d.name}{d.assignedVehiclePlate ? ` - ${d.assignedVehiclePlate}` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field-group">
+                    <label>Planned Departure</label>
+                    <input required type="datetime-local" value={plannedDeparture} onChange={(e) => setPlannedDeparture(e.target.value)} />
+                  </div>
+                  <button type="submit" disabled={!canOptimize} style={{ height: 48 }}><Navigation size={14} /> Calculate Route</button>
+                </form>
               </>
             )}
           </div>
         )}
 
         <div className="fleet-cards">
-          {routes.map(r => (
+          {filteredRoutes.map(r => (
             <div className="fleet-card" key={r.id}>
               <div className="fleet-card-header">
                 <div>
-                  <h4>{r.routeName}</h4>
+                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {r.routeName}
+                    {r.routeScore && (
+                      <span style={{
+                        fontSize: '0.7rem',
+                        background: r.routeScore >= 80 ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)',
+                        color: r.routeScore >= 80 ? '#34d399' : '#fbbf24',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        border: '1px solid currentColor'
+                      }}>
+                        Score: {r.routeScore}
+                      </span>
+                    )}
+                  </h4>
                   <div className="subtitle">{r.vehiclePlate} &bull; {r.driverName}</div>
                 </div>
                 <span className={statusClass(r.status)}>{r.status}</span>
@@ -797,11 +1098,11 @@ const RoutesView = memo(function RoutesView({ token, routes, vehicles, drivers, 
               )}
 
               <div className="fleet-card-actions">
-                {r.status === 'PLANNED' && (
+                {r.status === 'PLANNED' && !isDriver && (
                   <button onClick={() => dispatchRoute(r.id)}><Navigation size={14} /> Dispatch</button>
                 )}
-                {r.status === 'ACTIVE' && (
-                  <button onClick={() => completeRoute(r.id)} className="secondary"><CheckCircle2 size={14} /> Mark Completed</button>
+                {r.status === 'ACTIVE' && !isDriver && (
+                  <button onClick={() => completeRoute(r.id)} className="secondary"><CheckCircle2 size={14} /> Complete Route</button>
                 )}
                 <button className="secondary" onClick={() => setExpandedRoute(expandedRoute === r.id ? null : r.id)}>
                   {expandedRoute === r.id ? <EyeOff size={14} /> : <Eye size={14} />} {expandedRoute === r.id ? 'Hide stops' : 'Manifest list'}
@@ -818,14 +1119,34 @@ const RoutesView = memo(function RoutesView({ token, routes, vehicles, drivers, 
                         <p>{stop.recipientName} &bull; {stop.packageWeightKg || 0} kg</p>
                       </div>
                       <span className={statusClass(stop.deliveryStatus)}>{stop.deliveryStatus}</span>
+                      
+                      {/* Driver actions directly in the stops list */}
+                      {isDriver && r.status === 'ACTIVE' && (
+                        <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
+                          {stop.deliveryStatus === 'IN_TRANSIT' && (
+                            <>
+                              <button className="secondary" style={{ fontSize: '0.7rem', padding: '4px 8px', minHeight: '24px' }} onClick={() => updateStopStatus(stop.id, 'DELIVERED')}>Deliver</button>
+                              <button className="danger" style={{ fontSize: '0.7rem', padding: '4px 8px', minHeight: '24px' }} onClick={() => updateStopStatus(stop.id, 'FAILED')}>Fail</button>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
             </div>
           ))}
-          {routes.length === 0 && <div className="empty-state" style={{ gridColumn: '1/-1' }}><Navigation size={40} /><p>No planned route optimized yet.</p></div>}
+          {filteredRoutes.length === 0 && <div className="empty-state" style={{ gridColumn: '1/-1' }}><Navigation size={40} /><p>No routes optimized yet.</p></div>}
         </div>
+
+        {/* Pagination */}
+        {!isDriver && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+            <button className="secondary" disabled={rPage === 0} onClick={() => setRPage(v => v - 1)}>Prev</button>
+            <button className="secondary" disabled={routes.length < 10} onClick={() => setRPage(v => v + 1)}>Next</button>
+          </div>
+        )}
       </section>
     </div>
   );

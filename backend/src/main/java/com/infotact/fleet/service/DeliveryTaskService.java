@@ -14,16 +14,35 @@ import java.time.Instant;
 import java.util.List;
 
 @Service
+@SuppressWarnings("null")
 public class DeliveryTaskService {
 
     private final DeliveryTaskRepository taskRepository;
+    private final AuditService auditService;
 
-    public DeliveryTaskService(DeliveryTaskRepository taskRepository) {
+    public DeliveryTaskService(DeliveryTaskRepository taskRepository, AuditService auditService) {
         this.taskRepository = taskRepository;
+        this.auditService = auditService;
     }
 
     public List<DeliveryTaskResponse> listAll() {
         return taskRepository.findAll().stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeliveryTaskResponse> listAll(String status, String search, org.springframework.data.domain.Pageable pageable) {
+        DeliveryStatus deliveryStatus = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                deliveryStatus = DeliveryStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // Ignore
+            }
+        }
+        String searchQuery = (search != null && !search.isBlank()) ? "%" + search.trim().toLowerCase() + "%" : null;
+        return taskRepository.searchTasks(deliveryStatus, searchQuery, pageable)
+                .map(this::toResponse)
+                .getContent();
     }
 
     public List<DeliveryTaskResponse> listUnassigned() {
@@ -50,7 +69,9 @@ public class DeliveryTaskService {
                 request.notes()
         );
 
-        return toResponse(taskRepository.save(task));
+        DeliveryTask saved = taskRepository.save(task);
+        auditService.log("TASK_CREATE", "Created delivery task ID: " + saved.getId() + " for " + saved.getRecipientName() + " at " + saved.getDeliveryAddress());
+        return toResponse(saved);
     }
 
     @Transactional
@@ -70,7 +91,9 @@ public class DeliveryTaskService {
                 request.notes()
         );
 
-        return toResponse(taskRepository.save(task));
+        DeliveryTask saved = taskRepository.save(task);
+        auditService.log("TASK_UPDATE", "Updated details for delivery task ID: " + saved.getId());
+        return toResponse(saved);
     }
 
     @Transactional
@@ -78,8 +101,11 @@ public class DeliveryTaskService {
         DeliveryTask task = findOrThrow(id);
         try {
             DeliveryStatus nextStatus = DeliveryStatus.valueOf(request.status().toUpperCase());
+            DeliveryStatus oldStatus = task.getDeliveryStatus();
             task.transitionStatus(nextStatus);
-            return toResponse(taskRepository.save(task));
+            DeliveryTask saved = taskRepository.save(task);
+            auditService.log("TASK_STATUS_UPDATE", "Updated delivery task ID: " + saved.getId() + " status from " + oldStatus + " to " + nextStatus);
+            return toResponse(saved);
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid delivery status value: " + request.status());
         } catch (IllegalStateException e) {
@@ -91,6 +117,7 @@ public class DeliveryTaskService {
     public void delete(Long id) {
         DeliveryTask task = findOrThrow(id);
         taskRepository.delete(task);
+        auditService.log("TASK_DELETE", "Deleted delivery task ID: " + task.getId() + " at " + task.getDeliveryAddress());
     }
 
     public DeliveryTask findOrThrow(Long id) {

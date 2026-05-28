@@ -9,6 +9,7 @@ import reactor.netty.http.client.HttpClient;
 import java.time.Duration;
 
 @Configuration
+@SuppressWarnings("null")
 public class WebClientConfig {
 
     @Value("${fleet.osrm.timeout-seconds:10}")

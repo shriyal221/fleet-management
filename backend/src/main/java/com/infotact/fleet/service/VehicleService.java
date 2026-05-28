@@ -12,16 +12,35 @@ import java.time.Year;
 import java.util.List;
 
 @Service
+@SuppressWarnings("null")
 public class VehicleService {
 
     private final VehicleRepository vehicleRepository;
+    private final AuditService auditService;
 
-    public VehicleService(VehicleRepository vehicleRepository) {
+    public VehicleService(VehicleRepository vehicleRepository, AuditService auditService) {
         this.vehicleRepository = vehicleRepository;
+        this.auditService = auditService;
     }
 
     public List<VehicleResponse> listAll() {
         return vehicleRepository.findAll().stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<VehicleResponse> listAll(String status, String search, org.springframework.data.domain.Pageable pageable) {
+        VehicleMaintenanceStatus maintStatus = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                maintStatus = VehicleMaintenanceStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // Ignore
+            }
+        }
+        String searchQuery = (search != null && !search.isBlank()) ? "%" + search.trim().toLowerCase() + "%" : null;
+        return vehicleRepository.searchVehicles(maintStatus, searchQuery, pageable)
+                .map(this::toResponse)
+                .getContent();
     }
 
     public VehicleResponse getById(Long id) {
@@ -49,7 +68,9 @@ public class VehicleService {
         // Initial seed GPS position: Bengaluru
         vehicle.updateLocation(12.9716, 77.5946);
 
-        return toResponse(vehicleRepository.save(vehicle));
+        Vehicle saved = vehicleRepository.save(vehicle);
+        auditService.log("VEHICLE_CREATE", "Created vehicle " + saved.getLicensePlate() + " (" + saved.getMake() + " " + saved.getModel() + ")");
+        return toResponse(saved);
     }
 
     @Transactional
@@ -72,7 +93,9 @@ public class VehicleService {
                 normalize(request.fuelType()).toUpperCase()
         );
 
-        return toResponse(vehicleRepository.save(vehicle));
+        Vehicle saved = vehicleRepository.save(vehicle);
+        auditService.log("VEHICLE_UPDATE", "Updated vehicle details for " + saved.getLicensePlate());
+        return toResponse(saved);
     }
 
     @Transactional
@@ -81,7 +104,9 @@ public class VehicleService {
         try {
             VehicleMaintenanceStatus nextStatus = VehicleMaintenanceStatus.valueOf(status.toUpperCase());
             vehicle.updateMaintenanceStatus(nextStatus);
-            return toResponse(vehicleRepository.save(vehicle));
+            Vehicle saved = vehicleRepository.save(vehicle);
+            auditService.log("VEHICLE_STATUS_UPDATE", "Updated vehicle " + saved.getLicensePlate() + " maintenance status to " + nextStatus);
+            return toResponse(saved);
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid maintenance status: " + status);
         }
@@ -98,6 +123,7 @@ public class VehicleService {
     public void delete(Long id) {
         Vehicle vehicle = findOrThrow(id);
         vehicleRepository.delete(vehicle);
+        auditService.log("VEHICLE_DELETE", "Deleted vehicle " + vehicle.getLicensePlate());
     }
 
     public Vehicle findOrThrow(Long id) {

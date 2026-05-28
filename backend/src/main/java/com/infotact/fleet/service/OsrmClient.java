@@ -1,21 +1,29 @@
 package com.infotact.fleet.service;
 
-import com.infotact.fleet.exception.ExternalApiException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
+@SuppressWarnings("null")
 public class OsrmClient {
 
+    private static final Logger log = LoggerFactory.getLogger(OsrmClient.class);
     private final WebClient webClient;
 
     @Value("${fleet.osrm.base-url:https://router.project-osrm.org}")
     private String baseUrl;
+
+    @Value("${fleet.osrm.timeout-seconds:10}")
+    private int timeoutSeconds;
 
     public OsrmClient(WebClient webClient) {
         this.webClient = webClient;
@@ -23,7 +31,7 @@ public class OsrmClient {
 
     /**
      * Calls OSRM Table API to fetch distance matrix.
-     * Coordinates format: list of double[] where each elements is [longitude, latitude]
+     * Coordinates format: list of double[] where each element is [longitude, latitude]
      */
     @SuppressWarnings("unchecked")
     public Map<String, double[][]> getDistanceMatrix(List<double[]> coordinates) {
@@ -33,33 +41,33 @@ public class OsrmClient {
 
         String url = String.format("%s/table/v1/driving/%s?annotations=distance", baseUrl, coordsString);
 
-        try {
-            Map<String, Object> response = webClient.get()
-                    .uri(url)
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-
-            if (response != null && response.containsKey("distances")) {
-                List<List<Double>> distancesList = (List<List<Double>>) response.get("distances");
-                int size = distancesList.size();
-                double[][] distances = new double[size][size];
-                for (int i = 0; i < size; i++) {
-                    for (int j = 0; j < size; j++) {
-                        Double val = distancesList.get(i).get(j);
-                        distances[i][j] = val != null ? val : 0.0;
+        return webClient.get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(Map.class)
+                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .map(response -> {
+                    if (response != null && response.containsKey("distances")) {
+                        List<List<Double>> distancesList = (List<List<Double>>) response.get("distances");
+                        int size = distancesList.size();
+                        double[][] distances = new double[size][size];
+                        for (int i = 0; i < size; i++) {
+                            for (int j = 0; j < size; j++) {
+                                Double val = distancesList.get(i).get(j);
+                                distances[i][j] = val != null ? val : 0.0;
+                            }
+                        }
+                        Map<String, double[][]> result = new HashMap<>();
+                        result.put("distances", distances);
+                        return result;
                     }
-                }
-                Map<String, double[][]> result = new HashMap<>();
-                result.put("distances", distances);
-                return result;
-            }
-        } catch (Exception e) {
-            System.err.println("OSRM Table API failed. Using Haversine math fallback: " + e.getMessage());
-        }
-
-        // Fallback: Haversine distance matrix
-        return getMockDistanceMatrix(coordinates);
+                    throw new RuntimeException("distances not found in response");
+                })
+                .onErrorResume(e -> {
+                    log.error("OSRM Table API failed. Using Haversine math fallback: {}", e.getMessage());
+                    return Mono.just(getMockDistanceMatrix(coordinates));
+                })
+                .block();
     }
 
     /**
@@ -73,35 +81,39 @@ public class OsrmClient {
 
         String url = String.format("%s/route/v1/driving/%s?overview=false", baseUrl, coordsString);
 
-        try {
-            Map<String, Object> response = webClient.get()
-                    .uri(url)
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-            if (response != null && response.containsKey("routes")) {
-                List<Map<String, Object>> routesList = (List<Map<String, Object>>) response.get("routes");
-                if (!routesList.isEmpty()) {
-                    Map<String, Object> route = routesList.get(0);
-                    Double distance = ((Number) route.get("distance")).doubleValue();
-                    Double duration = ((Number) route.get("duration")).doubleValue();
-                    Map<String, Double> summary = new HashMap<>();
-                    summary.put("distance", distance);
-                    summary.put("duration", duration);
-                    return summary;
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("OSRM Route API failed. Using Haversine math fallback: " + e.getMessage());
-        }
+        return webClient.get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(Map.class)
+                .timeout(Duration.ofSeconds(timeoutSeconds))
+                .map(response -> {
+                    if (response != null && response.containsKey("routes")) {
+                        List<Map<String, Object>> routesList = (List<Map<String, Object>>) response.get("routes");
+                        if (!routesList.isEmpty()) {
+                            Map<String, Object> route = routesList.get(0);
+                            Double distance = ((Number) route.get("distance")).doubleValue();
+                            Double duration = ((Number) route.get("duration")).doubleValue();
+                            Map<String, Double> summary = new HashMap<>();
+                            summary.put("distance", distance);
+                            summary.put("duration", duration);
+                            return summary;
+                        }
+                    }
+                    throw new RuntimeException("routes not found in response");
+                })
+                .onErrorResume(e -> {
+                    log.error("OSRM Route API failed. Using Haversine math fallback: {}", e.getMessage());
+                    return Mono.just(calculateHaversineSummary(coordinates));
+                })
+                .block();
+    }
 
-        // Fallback: simple summary based on Haversine distance sum
+    private Map<String, Double> calculateHaversineSummary(List<double[]> coordinates) {
         double totalDistanceMeters = 0.0;
         for (int i = 0; i < coordinates.size() - 1; i++) {
             totalDistanceMeters += haversine(coordinates.get(i)[1], coordinates.get(i)[0],
                                             coordinates.get(i + 1)[1], coordinates.get(i + 1)[0]) * 1000.0;
         }
-        // Add return trip to depot to make it a loop
         totalDistanceMeters += haversine(coordinates.get(coordinates.size() - 1)[1], coordinates.get(coordinates.size() - 1)[0],
                                          coordinates.get(0)[1], coordinates.get(0)[0]) * 1000.0;
 
@@ -122,7 +134,6 @@ public class OsrmClient {
                 if (i == j) {
                     distances[i][j] = 0.0;
                 } else {
-                    // Haversine distance in meters
                     distances[i][j] = haversine(coordinates.get(i)[1], coordinates.get(i)[0],
                                                 coordinates.get(j)[1], coordinates.get(j)[0]) * 1000.0;
                 }

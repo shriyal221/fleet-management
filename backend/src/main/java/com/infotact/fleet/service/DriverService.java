@@ -14,18 +14,37 @@ import java.time.Instant;
 import java.util.List;
 
 @Service
+@SuppressWarnings("null")
 public class DriverService {
 
     private final DriverRepository driverRepository;
     private final VehicleService vehicleService;
+    private final AuditService auditService;
 
-    public DriverService(DriverRepository driverRepository, VehicleService vehicleService) {
+    public DriverService(DriverRepository driverRepository, VehicleService vehicleService, AuditService auditService) {
         this.driverRepository = driverRepository;
         this.vehicleService = vehicleService;
+        this.auditService = auditService;
     }
 
     public List<DriverResponse> listAll() {
         return driverRepository.findAll().stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DriverResponse> listAll(String status, String search, org.springframework.data.domain.Pageable pageable) {
+        DriverStatus driverStatus = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                driverStatus = DriverStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // Ignore
+            }
+        }
+        String searchQuery = (search != null && !search.isBlank()) ? "%" + search.trim().toLowerCase() + "%" : null;
+        return driverRepository.searchDrivers(driverStatus, searchQuery, pageable)
+                .map(this::toResponse)
+                .getContent();
     }
 
     public DriverResponse getById(Long id) {
@@ -50,7 +69,9 @@ public class DriverService {
                 request.shiftEnd()
         );
 
-        return toResponse(driverRepository.save(driver));
+        Driver saved = driverRepository.save(driver);
+        auditService.log("DRIVER_CREATE", "Created driver profile for " + saved.getName() + " (License: " + saved.getLicenseNumber() + ")");
+        return toResponse(saved);
     }
 
     @Transactional
@@ -73,7 +94,9 @@ public class DriverService {
                 request.shiftEnd()
         );
 
-        return toResponse(driverRepository.save(driver));
+        Driver saved = driverRepository.save(driver);
+        auditService.log("DRIVER_UPDATE", "Updated details for driver " + saved.getName());
+        return toResponse(saved);
     }
 
     @Transactional
@@ -85,7 +108,9 @@ public class DriverService {
                 throw new IllegalArgumentException("Driver cannot be marked AVAILABLE because the license is expired.");
             }
             driver.updateStatus(nextStatus);
-            return toResponse(driverRepository.save(driver));
+            Driver saved = driverRepository.save(driver);
+            auditService.log("DRIVER_STATUS_UPDATE", "Updated driver " + saved.getName() + " status to " + nextStatus);
+            return toResponse(saved);
         } catch (IllegalArgumentException e) {
             if (e.getMessage() != null && e.getMessage().startsWith("Driver cannot")) {
                 throw e;
@@ -105,20 +130,26 @@ public class DriverService {
             throw new IllegalArgumentException("Cannot assign vehicle because the driver license is expired.");
         }
         driver.assignVehicle(vehicle);
-        return toResponse(driverRepository.save(driver));
+        Driver saved = driverRepository.save(driver);
+        auditService.log("DRIVER_VEHICLE_ASSIGN", "Assigned vehicle " + vehicle.getLicensePlate() + " to driver " + saved.getName());
+        return toResponse(saved);
     }
 
     @Transactional
     public DriverResponse unassignVehicle(Long driverId) {
         Driver driver = findOrThrow(driverId);
+        String vehiclePlate = driver.getAssignedVehicle() != null ? driver.getAssignedVehicle().getLicensePlate() : "N/A";
         driver.unassignVehicle();
-        return toResponse(driverRepository.save(driver));
+        Driver saved = driverRepository.save(driver);
+        auditService.log("DRIVER_VEHICLE_UNASSIGN", "Unassigned vehicle " + vehiclePlate + " from driver " + saved.getName());
+        return toResponse(saved);
     }
 
     @Transactional
     public void delete(Long id) {
         Driver driver = findOrThrow(id);
         driverRepository.delete(driver);
+        auditService.log("DRIVER_DELETE", "Deleted driver profile for " + driver.getName());
     }
 
     public Driver findOrThrow(Long id) {

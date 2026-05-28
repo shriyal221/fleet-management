@@ -37,6 +37,9 @@ public class Route {
     @Column(name = "total_fuel_estimate_liters")
     private Double totalFuelEstimateLiters;
 
+    @Column(name = "route_score")
+    private Double routeScore = 100.0;
+
     @Column(name = "start_latitude", nullable = false)
     private Double startLatitude;
 
@@ -89,6 +92,10 @@ public class Route {
         this.optimizedWaypointOrder = waypointOrderJson;
     }
 
+    public void setRouteScore(Double routeScore) {
+        this.routeScore = routeScore;
+    }
+
     public void dispatch() {
         if (this.status != RouteStatus.PLANNED) {
             throw new IllegalStateException("Only PLANNED routes can be dispatched. Current status: " + this.status);
@@ -121,6 +128,7 @@ public class Route {
     public Double getTotalDistanceKm() { return totalDistanceKm; }
     public Integer getEstimatedDurationMinutes() { return estimatedDurationMinutes; }
     public Double getTotalFuelEstimateLiters() { return totalFuelEstimateLiters; }
+    public Double getRouteScore() { return routeScore; }
     public Double getStartLatitude() { return startLatitude; }
     public Double getStartLongitude() { return startLongitude; }
     public String getOptimizedWaypointOrder() { return optimizedWaypointOrder; }

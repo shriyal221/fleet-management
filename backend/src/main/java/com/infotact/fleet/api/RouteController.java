@@ -21,8 +21,11 @@ public class RouteController {
     }
 
     @GetMapping
-    public List<RouteResponse> list() {
-        return routeService.listAll();
+    public List<RouteResponse> list(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search,
+            @org.springframework.data.web.PageableDefault(size = 50) org.springframework.data.domain.Pageable pageable) {
+        return routeService.listAll(status, search, pageable);
     }
 
     @GetMapping("/{id}")

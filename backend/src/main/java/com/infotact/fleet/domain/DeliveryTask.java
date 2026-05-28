@@ -51,7 +51,7 @@ public class DeliveryTask {
     @Column(name = "sequence_index")
     private Integer sequenceIndex;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "route_id")
     private Route route;
 

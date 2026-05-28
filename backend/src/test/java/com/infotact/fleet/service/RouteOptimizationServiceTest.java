@@ -3,7 +3,7 @@ package com.infotact.fleet.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -20,6 +20,8 @@ import com.infotact.fleet.repository.DeliveryTaskRepository;
 import com.infotact.fleet.repository.DriverRepository;
 import com.infotact.fleet.repository.RouteRepository;
 import com.infotact.fleet.repository.VehicleRepository;
+import com.infotact.fleet.service.optimization.TwoOptStrategy;
+import com.infotact.fleet.service.optimization.RouteScoringSystem;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -33,6 +35,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings("null")
 class RouteOptimizationServiceTest {
 
     @Mock
@@ -56,6 +59,12 @@ class RouteOptimizationServiceTest {
     @Mock
     private AuditService auditService;
 
+    @Mock
+    private TwoOptStrategy routeOptimizationStrategy;
+
+    @Mock
+    private RouteScoringSystem routeScoringSystem;
+
     private RouteOptimizationService service;
 
     @BeforeEach
@@ -67,7 +76,9 @@ class RouteOptimizationServiceTest {
                 driverRepository,
                 deliveryTaskService,
                 osrmClient,
-                auditService
+                auditService,
+                routeOptimizationStrategy,
+                routeScoringSystem
         );
         ReflectionTestUtils.setField(service, "dieselKmPerLiter", 8.0);
         ReflectionTestUtils.setField(service, "petrolKmPerLiter", 10.0);
@@ -87,18 +98,28 @@ class RouteOptimizationServiceTest {
         when(driverRepository.findById(2L)).thenReturn(Optional.of(driver));
         when(taskRepository.findById(10L)).thenReturn(Optional.of(first));
         when(taskRepository.findById(11L)).thenReturn(Optional.of(second));
+        
         when(osrmClient.getDistanceMatrix(any())).thenReturn(Map.of("distances", new double[][]{
                 {0.0, 1000.0, 2500.0},
                 {1000.0, 0.0, 900.0},
                 {2500.0, 900.0, 0.0}
         }));
+        
+        // Mock Strategy call
+        when(routeOptimizationStrategy.optimize(any(), any(), any(), anyDouble(), anyDouble())).thenReturn(new int[]{0, 1, 2});
+        
         when(osrmClient.getRouteSummary(any())).thenReturn(Map.of("distance", 5600.0, "duration", 840.0));
         when(routeRepository.countByRouteNameStartingWith(anyString())).thenReturn(0L);
+        
+        // Mock Scoring System
+        when(routeScoringSystem.calculateScore(any(), any(), anyDouble())).thenReturn(95.5);
+
         when(routeRepository.save(any(Route.class))).thenAnswer(invocation -> {
             Route route = invocation.getArgument(0);
             ReflectionTestUtils.setField(route, "id", 99L);
             return route;
         });
+        
         when(taskRepository.findAllByRouteId(99L)).thenReturn(List.of(first, second));
         when(deliveryTaskService.toResponse(any(DeliveryTask.class))).thenAnswer(invocation -> {
             DeliveryTask task = invocation.getArgument(0);
@@ -121,6 +142,7 @@ class RouteOptimizationServiceTest {
         assertThat(response.vehiclePlate()).isEqualTo("KA-01-AB-1234");
         assertThat(response.stopCount()).isEqualTo(2);
         assertThat(response.totalDistanceKm()).isEqualTo(5.6);
+        assertThat(response.routeScore()).isEqualTo(95.5);
         verify(taskRepository).save(first);
         verify(taskRepository).save(second);
     }
@@ -160,10 +182,14 @@ class RouteOptimizationServiceTest {
         when(vehicleRepository.findById(1L)).thenReturn(Optional.of(vehicle));
         when(driverRepository.findById(2L)).thenReturn(Optional.of(driver));
         when(taskRepository.findById(10L)).thenReturn(Optional.of(task));
+        
         when(osrmClient.getDistanceMatrix(any())).thenReturn(Map.of("distances", new double[][]{
                 {0.0, 100000.0},
                 {100000.0, 0.0}
         }));
+        
+        // Mock Strategy call
+        when(routeOptimizationStrategy.optimize(any(), any(), any(), anyDouble(), anyDouble())).thenReturn(new int[]{0, 1});
 
         assertThatThrownBy(() -> service.optimizeRoute(new RouteOptimizationRequest(
                 List.of(10L),

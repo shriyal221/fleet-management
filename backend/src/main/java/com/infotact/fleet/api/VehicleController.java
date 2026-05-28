@@ -21,8 +21,11 @@ public class VehicleController {
     }
 
     @GetMapping
-    public List<VehicleResponse> list() {
-        return vehicleService.listAll();
+    public List<VehicleResponse> list(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String search,
+            @org.springframework.data.web.PageableDefault(size = 50) org.springframework.data.domain.Pageable pageable) {
+        return vehicleService.listAll(status, search, pageable);
     }
 
     @GetMapping("/{id}")
