@@ -2,10 +2,10 @@ spring:
   application:
     name: fleet-management-system
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/fleet_db?allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:root}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/wms}
+    username: ${DB_USERNAME:wms}
+    password: ${DB_PASSWORD:wms}
+    driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
       ddl-auto: update
@@ -13,7 +13,7 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
   jackson:
     default-property-inclusion: non_null

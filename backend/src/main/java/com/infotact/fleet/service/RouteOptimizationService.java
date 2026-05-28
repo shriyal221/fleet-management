@@ -32,6 +32,7 @@ public class RouteOptimizationService {
     private final DriverRepository driverRepository;
     private final DeliveryTaskService deliveryTaskService;
     private final OsrmClient osrmClient;
+    private final AuditService auditService;
 
     @Value("${fleet.fuel-efficiency.diesel-km-per-liter:8.0}")
     private double dieselKmPerLiter;
@@ -50,13 +51,15 @@ public class RouteOptimizationService {
                                     VehicleRepository vehicleRepository,
                                     DriverRepository driverRepository,
                                     DeliveryTaskService deliveryTaskService,
-                                    OsrmClient osrmClient) {
+                                    OsrmClient osrmClient,
+                                    AuditService auditService) {
         this.routeRepository = routeRepository;
         this.taskRepository = taskRepository;
         this.vehicleRepository = vehicleRepository;
         this.driverRepository = driverRepository;
         this.deliveryTaskService = deliveryTaskService;
         this.osrmClient = osrmClient;
+        this.auditService = auditService;
     }
 
     public List<RouteResponse> listAll() {
@@ -156,6 +159,7 @@ public class RouteOptimizationService {
             taskRepository.save(task);
         }
 
+        auditService.log("ROUTE_OPTIMIZE", "Optimized route: " + route.getRouteName() + " (Stops: " + tasks.size() + ", Dist: " + route.getTotalDistanceKm() + " km)");
         return toResponse(route);
     }
 
@@ -178,6 +182,7 @@ public class RouteOptimizationService {
             }
         }
 
+        auditService.log("ROUTE_DISPATCH", "Dispatched route: " + route.getRouteName() + " with driver " + driver.getName() + " and vehicle " + route.getVehicle().getLicensePlate());
         return toResponse(routeRepository.save(route));
     }
 
@@ -197,6 +202,7 @@ public class RouteOptimizationService {
             vehicleRepository.save(route.getVehicle());
         }
 
+        auditService.log("ROUTE_COMPLETE", "Completed route: " + route.getRouteName() + " (Odometer updated by " + route.getTotalDistanceKm() + " km)");
         return toResponse(routeRepository.save(route));
     }
 

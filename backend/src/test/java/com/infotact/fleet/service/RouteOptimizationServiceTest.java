@@ -53,6 +53,9 @@ class RouteOptimizationServiceTest {
     @Mock
     private OsrmClient osrmClient;
 
+    @Mock
+    private AuditService auditService;
+
     private RouteOptimizationService service;
 
     @BeforeEach
@@ -63,7 +66,8 @@ class RouteOptimizationServiceTest {
                 vehicleRepository,
                 driverRepository,
                 deliveryTaskService,
-                osrmClient
+                osrmClient,
+                auditService
         );
         ReflectionTestUtils.setField(service, "dieselKmPerLiter", 8.0);
         ReflectionTestUtils.setField(service, "petrolKmPerLiter", 10.0);

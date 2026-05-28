@@ -8,6 +8,7 @@ import com.infotact.fleet.domain.Role;
 import com.infotact.fleet.exception.ResourceNotFoundException;
 import com.infotact.fleet.repository.AppUserRepository;
 import com.infotact.fleet.security.JwtTokenProvider;
+import com.infotact.fleet.service.AuditService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,11 +20,13 @@ public class UserService {
     private final AppUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final AuditService auditService;
 
-    public UserService(AppUserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider) {
+    public UserService(AppUserRepository userRepository, PasswordEncoder passwordEncoder, JwtTokenProvider jwtTokenProvider, AuditService auditService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -45,6 +48,7 @@ public class UserService {
         );
 
         userRepository.save(user);
+        auditService.log("USER_REGISTER", user.getUsername(), "Registered " + user.getName() + " (" + user.getRole() + ")");
         
         String token = jwtTokenProvider.generateToken(user);
         return new AuthResponse(token, user.getUsername(), List.of(user.getRole().name()), user.getName());
@@ -59,6 +63,7 @@ public class UserService {
         }
 
         String token = jwtTokenProvider.generateToken(user);
+        auditService.log("USER_LOGIN", user.getUsername(), "Logged in successfully");
         return new AuthResponse(token, user.getUsername(), List.of(user.getRole().name()), user.getName());
     }
 }

@@ -3,7 +3,7 @@ package com.infotact.fleet.service;
 import com.infotact.fleet.exception.ExternalApiException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,19 +12,20 @@ import java.util.stream.Collectors;
 @Service
 public class OsrmClient {
 
-    private final RestTemplate restTemplate;
+    private final WebClient webClient;
 
     @Value("${fleet.osrm.base-url:https://router.project-osrm.org}")
     private String baseUrl;
 
-    public OsrmClient(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
+    public OsrmClient(WebClient webClient) {
+        this.webClient = webClient;
     }
 
     /**
      * Calls OSRM Table API to fetch distance matrix.
      * Coordinates format: list of double[] where each elements is [longitude, latitude]
      */
+    @SuppressWarnings("unchecked")
     public Map<String, double[][]> getDistanceMatrix(List<double[]> coordinates) {
         String coordsString = coordinates.stream()
                 .map(c -> c[0] + "," + c[1])
@@ -33,7 +34,12 @@ public class OsrmClient {
         String url = String.format("%s/table/v1/driving/%s?annotations=distance", baseUrl, coordsString);
 
         try {
-            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+            Map<String, Object> response = webClient.get()
+                    .uri(url)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
             if (response != null && response.containsKey("distances")) {
                 List<List<Double>> distancesList = (List<List<Double>>) response.get("distances");
                 int size = distancesList.size();
@@ -59,6 +65,7 @@ public class OsrmClient {
     /**
      * Calls OSRM Route API to fetch route summary.
      */
+    @SuppressWarnings("unchecked")
     public Map<String, Double> getRouteSummary(List<double[]> coordinates) {
         String coordsString = coordinates.stream()
                 .map(c -> c[0] + "," + c[1])
@@ -67,7 +74,11 @@ public class OsrmClient {
         String url = String.format("%s/route/v1/driving/%s?overview=false", baseUrl, coordsString);
 
         try {
-            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+            Map<String, Object> response = webClient.get()
+                    .uri(url)
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
             if (response != null && response.containsKey("routes")) {
                 List<Map<String, Object>> routesList = (List<Map<String, Object>>) response.get("routes");
                 if (!routesList.isEmpty()) {
