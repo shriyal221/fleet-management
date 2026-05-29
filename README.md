@@ -148,7 +148,7 @@ fleet-management/
 
 ## ⚡ Quick Start & Installation
 
-Ensure you have **Java 17**, **Node.js (v18+)**, and **PostgreSQL (v14+)** or **Docker** installed on your system.
+Ensure you have **Java 21**, **Node.js (v18+)**, and **PostgreSQL (v14+)** or **Docker** installed on your system.
 
 ### Option A: Run via Docker Compose (Recommended)
 You can launch the entire ecosystem—including database, API, and UI—with a single command:
