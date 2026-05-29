@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Java Version](https://img.shields.io/badge/Java-17-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://www.oracle.com/java/technologies/downloads/)
+[![Java Version](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://www.oracle.com/java/technologies/downloads/)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.5-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![React](https://img.shields.io/badge/React-18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
@@ -27,12 +27,12 @@ Here is a look at the high-fidelity dark glassmorphic console designed to stream
 
 | 🎛️ Real-Time Fleet Dashboard | 🗺️ Live TSP Route Optimizer |
 |:---:|:---:|
-| ![Dashboard Console](https://raw.githubusercontent.com/shriyal221/advanced-wms/main/docs/assets/dashboard.png) | ![Route Planner](https://raw.githubusercontent.com/shriyal221/advanced-wms/main/docs/assets/planner.png) |
+| ![Dashboard Console](https://raw.githubusercontent.com/shriyal221/fleet-management/main/docs/assets/dashboard.png) | ![Route Planner](https://raw.githubusercontent.com/shriyal221/fleet-management/main/docs/assets/planner.png) |
 | *High-fidelity operational KPIs, stats strip, active fleet telemetry status, and security context tracking.* | *Dynamic waypoint selection, interactive routing graphs, active driver dispatcher, and fuel/time optimizer.* |
 
 | 🔑 Secure Dispatch Login | 🛠️ Fleet Registry & Asset Manager |
 |:---:|:---:|
-| ![Login UI](https://raw.githubusercontent.com/shriyal221/advanced-wms/main/docs/assets/login.png) | ![Fleet Registry](https://raw.githubusercontent.com/shriyal221/advanced-wms/main/docs/assets/registry.png) |
+| ![Login UI](https://raw.githubusercontent.com/shriyal221/fleet-management/main/docs/assets/login.png) | ![Fleet Registry](https://raw.githubusercontent.com/shriyal221/fleet-management/main/docs/assets/registry.png) |
 | *Dispatcher and Administrator authorization screens backed by strong SHA-256 HMAC-signed JSON Web Tokens.* | *Side-by-side view tracking operational trucks and active driver profiles with live shift assignments.* |
 
 ---
@@ -120,7 +120,7 @@ fleet-management/
 │   │   └── service/             # Optimization services, JWT, and GPS simulations
 │   ├── src/test/java/           # JUnit 5 & Mockito unit test suite
 │   ├── pom.xml                  # Maven dependencies & build metadata
-│   └── Dockerfile               # Multi-stage JDK 17 build configuration
+│   └── Dockerfile               # Multi-stage JDK 21 build configuration
 ├── frontend/
 │   ├── src/
 │   │   ├── components/          # Reusable UI widgets (Charts, Leaflet Tracker)
