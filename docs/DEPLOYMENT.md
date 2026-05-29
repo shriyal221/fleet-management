@@ -18,7 +18,7 @@ We bundle a production-ready **Docker Compose** layout to spin up the entire eco
                │ (Reverse Proxy on /api/*)
                ▼
 ┌──────────────────────────────┐
-│   backend (Java 17 App)      │
+│   backend (Java 21 App)      │
 └──────────────┬───────────────┘
                │ (Port 5432)
                ▼
