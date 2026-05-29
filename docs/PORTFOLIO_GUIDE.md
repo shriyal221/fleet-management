@@ -50,7 +50,7 @@ Add these technical descriptions under your Projects section to highlight key ac
 
 Ensure these target keywords are present in your GitHub bio, personal portfolio, and LinkedIn headline to trigger search visibility:
 
-* **Core Java Technologies**: `Java 17`, `Spring Boot 3`, `Spring Security`, `Spring Data JPA`, `Hibernate`, `JUnit 5`, `Mockito`
+* **Core Java Technologies**: `Java 21`, `Spring Boot 3`, `Spring Security`, `Spring Data JPA`, `Hibernate`, `JUnit 5`, `Mockito`
 * **Web and Integration**: `WebClient`, `RESTful APIs`, `WebSockets`, `STOMP Protocol`, `Stateless Authentication`, `JWT`
 * **Databases & DevOps**: `PostgreSQL`, `MySQL`, `Database Schema Design`, `Docker`, `Docker Compose`, `GitFlow`, `CI/CD Pipelines`
 * **Architecture & Algorithms**: `NP-Hard Optimization`, `Heuristics Algorithms`, `Heuristics Solvers`, `Heuristic TSP`, `Software Engineering Best Practices`, `Design Patterns`
