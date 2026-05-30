@@ -23,6 +23,7 @@ import { AnalyticsCharts } from './components/AnalyticsCharts.jsx';
 import { GpsTrackerMap } from './components/GpsTrackerMap.jsx';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { useTranslation } from './i18n.jsx';
 
 function toDateTimeLocalValue(date) {
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
@@ -36,6 +37,7 @@ function formatTimeWindow(start, end) {
 }
 
 function App() {
+  const { t, lang, changeLanguage } = useTranslation();
   const [auth, setAuth] = useState(() => {
     const stored = localStorage.getItem('fleet-auth');
     return stored ? JSON.parse(stored) : null;
@@ -83,16 +85,17 @@ function App() {
   // Available tabs based on roles
   const tabs = useMemo(() => {
     const allTabs = [
-      { id: 'dashboard', label: 'Dashboard', icon: Truck },
-      { id: 'fleet', label: 'Fleet Registry', icon: Users2 },
-      { id: 'deliveries', label: 'Deliveries', icon: MapPin },
-      { id: 'routes', label: 'Route Planner', icon: Navigation }
+      { id: 'dashboard', label: t('dashboard'), icon: Truck },
+      { id: 'fleet', label: t('fleet_registry'), icon: Users2 },
+      { id: 'deliveries', label: t('deliveries'), icon: MapPin },
+      { id: 'routes', label: t('route_planner'), icon: Navigation }
     ];
     if (isDriver) {
       return allTabs.filter(t => t.id === 'dashboard' || t.id === 'routes');
     }
     return allTabs;
-  }, [isDriver]);
+  }, [isDriver, t]);
+
 
   const run = useCallback(async (action, successMsg) => {
     setLoading(true);
@@ -211,21 +214,42 @@ function App() {
         <div className="auth-container">
           <div className="auth-hero">
             <div className="hero-icon"><ShieldCheck size={32} /></div>
-            <h1>Fleet Dispatcher</h1>
-            <p>Professional Fleet Registry, pluggable strategy route scoring, and live STOMP WebSocket coordinate simulation.</p>
+            <h1>{t('fleet_dispatcher')}</h1>
+            <p>{t('hero_description')}</p>
             <div className="hero-features">
-              <div className="hero-feature"><CheckCircle2 size={18} /> Pluggable Strategy Optimization Matrix</div>
-              <div className="hero-feature"><CheckCircle2 size={18} /> Dynamic Route Score Analysis</div>
-              <div className="hero-feature"><CheckCircle2 size={18} /> STOMP Live Coordinate Simulations</div>
-              <div className="hero-feature"><CheckCircle2 size={18} /> Propagation-Independent Audit Logs</div>
+              <div className="hero-feature"><CheckCircle2 size={18} /> {t('matrix_optimization')}</div>
+              <div className="hero-feature"><CheckCircle2 size={18} /> {t('score_analysis')}</div>
+              <div className="hero-feature"><CheckCircle2 size={18} /> {t('stomp_simulations')}</div>
+              <div className="hero-feature"><CheckCircle2 size={18} /> {t('audit_logs')}</div>
             </div>
           </div>
           <div className="auth-panel">
             {authMode === 'login' ? (
               <>
-                <div className="auth-header">
-                  <h2>Welcome back</h2>
-                  <p>Sign in to your dispatcher terminal</p>
+                <div className="auth-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+                  <div>
+                    <h2>{t('welcome_back')}</h2>
+                    <p>{t('sign_in_terminal')}</p>
+                  </div>
+                  <select 
+                    value={lang} 
+                    onChange={(e) => changeLanguage(e.target.value)} 
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid var(--panel-border)',
+                      color: 'var(--text-main)',
+                      borderRadius: '16px',
+                      padding: '0 8px',
+                      height: '32px',
+                      fontSize: '0.8rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="en" style={{ background: '#0f172a' }}>EN</option>
+                    <option value="hi" style={{ background: '#0f172a' }}>हिन्दी</option>
+                  </select>
                 </div>
                 
                 {/* 1-Click Professional Demo Quick Access Shortcuts */}
@@ -239,49 +263,71 @@ function App() {
                   flexDirection: 'column',
                   gap: '8px'
                 }}>
-                  <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Quick Demo Access (1-Click Fill)</span>
+                  <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('quick_demo_access')}</span>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button type="button" onClick={() => setLoginForm({ username: 'admin@fleetpro.com', password: 'admin123' })} style={{ flex: 1, padding: '6px 8px', fontSize: '0.72rem', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', color: '#34d399', cursor: 'pointer', fontWeight: 800, transition: 'all 0.2s' }}>ADMIN</button>
-                    <button type="button" onClick={() => setLoginForm({ username: 'dispatcher@fleetpro.com', password: 'dispatcher123' })} style={{ flex: 1, padding: '6px 8px', fontSize: '0.72rem', borderRadius: '6px', background: 'rgba(14, 165, 233, 0.1)', border: '1px solid rgba(14, 165, 233, 0.2)', color: '#38bdf8', cursor: 'pointer', fontWeight: 800, transition: 'all 0.2s' }}>DISPATCHER</button>
-                    <button type="button" onClick={() => setLoginForm({ username: 'driver@fleetpro.com', password: 'operator123' })} style={{ flex: 1, padding: '6px 8px', fontSize: '0.72rem', borderRadius: '6px', background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.2)', color: '#818cf8', cursor: 'pointer', fontWeight: 800, transition: 'all 0.2s' }}>DRIVER</button>
+                    <button type="button" onClick={() => setLoginForm({ username: 'admin@fleetpro.com', password: 'admin123' })} style={{ flex: 1, padding: '6px 8px', fontSize: '0.72rem', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', color: '#34d399', cursor: 'pointer', fontWeight: 800, transition: 'all 0.2s' }}>{t('admin_btn')}</button>
+                    <button type="button" onClick={() => setLoginForm({ username: 'dispatcher@fleetpro.com', password: 'dispatcher123' })} style={{ flex: 1, padding: '6px 8px', fontSize: '0.72rem', borderRadius: '6px', background: 'rgba(14, 165, 233, 0.1)', border: '1px solid rgba(14, 165, 233, 0.2)', color: '#38bdf8', cursor: 'pointer', fontWeight: 800, transition: 'all 0.2s' }}>{t('dispatcher_btn')}</button>
+                    <button type="button" onClick={() => setLoginForm({ username: 'driver@fleetpro.com', password: 'operator123' })} style={{ flex: 1, padding: '6px 8px', fontSize: '0.72rem', borderRadius: '6px', background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.2)', color: '#818cf8', cursor: 'pointer', fontWeight: 800, transition: 'all 0.2s' }}>{t('driver_btn')}</button>
                   </div>
                 </div>
 
                 <form onSubmit={handleLogin} className="auth-form">
                   <div className="field-group">
-                    <label>Username</label>
-                    <input required placeholder="Enter username" value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} />
+                    <label>{t('username')}</label>
+                    <input required placeholder={t('username')} value={loginForm.username} onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })} />
                   </div>
                   <div className="field-group">
-                    <label>Password</label>
+                    <label>{t('password')}</label>
                     <div className="password-input-wrapper">
-                      <input required type={showPassword ? "text" : "password"} placeholder="Enter password" value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} />
+                      <input required type={showPassword ? "text" : "password"} placeholder={t('password')} value={loginForm.password} onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })} />
                       <button type="button" className="password-toggle-btn" onClick={() => setShowPassword(!showPassword)}>
                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
                     </div>
                   </div>
-                  <button type="submit" disabled={loading}><ShieldCheck size={18} />{loading ? 'Signing in...' : 'Sign In'}</button>
+                  <button type="submit" disabled={loading}><ShieldCheck size={18} />{loading ? t('signing_in') : t('sign_in')}</button>
                 </form>
                 {message && <div className={`auth-message error`}>{message}</div>}
                 <div className="auth-switch">
-                  Don't have an account? <button type="button" onClick={() => { setAuthMode('register'); setMessage(''); }}>Register Dispatcher</button>
+                  {t('dont_have_account')}{' '}
+                  <button type="button" onClick={() => { setAuthMode('register'); setMessage(''); }}>{t('register_dispatcher')}</button>
                 </div>
               </>
             ) : (
               <>
-                <div className="auth-header">
-                  <h2>Create Account</h2>
-                  <p>Register dispatcher credentials</p>
+                <div className="auth-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+                  <div>
+                    <h2>{t('create_account')}</h2>
+                    <p>{t('register_credentials')}</p>
+                  </div>
+                  <select 
+                    value={lang} 
+                    onChange={(e) => changeLanguage(e.target.value)} 
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid var(--panel-border)',
+                      color: 'var(--text-main)',
+                      borderRadius: '16px',
+                      padding: '0 8px',
+                      height: '32px',
+                      fontSize: '0.8rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      outline: 'none',
+                    }}
+                  >
+                    <option value="en" style={{ background: '#0f172a' }}>EN</option>
+                    <option value="hi" style={{ background: '#0f172a' }}>हिन्दी</option>
+                  </select>
                 </div>
                 <form onSubmit={handleRegister} className="auth-form">
                   <div className="field-row">
                     <div className="field-group">
-                      <label>Username</label>
-                      <input required placeholder="Username" value={registerForm.username} onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })} />
+                      <label>{t('username')}</label>
+                      <input required placeholder={t('username')} value={registerForm.username} onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })} />
                     </div>
                     <div className="field-group">
-                      <label>Password</label>
+                      <label>{t('password')}</label>
                       <div className="password-input-wrapper">
                         <input required type={showPassword ? "text" : "password"} placeholder="Min 6 chars" value={registerForm.password} onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })} />
                         <button type="button" className="password-toggle-btn" onClick={() => setShowPassword(!showPassword)}>
@@ -292,30 +338,31 @@ function App() {
                   </div>
                   <div className="field-row">
                     <div className="field-group">
-                      <label>Full Name</label>
-                      <input required placeholder="Name" value={registerForm.name} onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })} />
+                      <label>{t('full_name')}</label>
+                      <input required placeholder={t('full_name')} value={registerForm.name} onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })} />
                     </div>
                     <div className="field-group">
-                      <label>Role</label>
+                      <label>{t('role')}</label>
                       <select value={registerForm.role} onChange={(e) => setRegisterForm({ ...registerForm, role: e.target.value })}>
-                        <option value="DISPATCHER">Dispatcher</option>
-                        <option value="ADMIN">Administrator</option>
+                        <option value="DISPATCHER">{t('dispatcher')}</option>
+                        <option value="ADMIN">{t('administrator')}</option>
                       </select>
                     </div>
                   </div>
                   <div className="field-group">
-                    <label>Email</label>
+                    <label>{t('email')}</label>
                     <input type="email" placeholder="email@example.com" value={registerForm.email} onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })} />
                   </div>
                   <div className="field-group">
-                    <label>Contact Number</label>
+                    <label>{t('contact_number')}</label>
                     <input required type="tel" pattern="^\+?[0-9]{10,15}$" placeholder="Phone (+1234567890)" value={registerForm.contactNumber} onChange={(e) => setRegisterForm({ ...registerForm, contactNumber: e.target.value })} title="Phone number (10-15 digits)" />
                   </div>
-                  <button type="submit" disabled={loading}><UserPlus size={18} />{loading ? 'Registering...' : 'Register'}</button>
+                  <button type="submit" disabled={loading}><UserPlus size={18} />{loading ? t('registering') : t('register_btn')}</button>
                 </form>
                 {message && <div className={`auth-message error`}>{message}</div>}
                 <div className="auth-switch">
-                  Already have an account? <button type="button" onClick={() => { setAuthMode('login'); setMessage(''); }}>Sign In</button>
+                  {t('already_have_account')}{' '}
+                  <button type="button" onClick={() => { setAuthMode('login'); setMessage(''); }}>{t('sign_in')}</button>
                 </div>
               </>
             )}
@@ -330,7 +377,7 @@ function App() {
       <aside className="sidebar">
         <div className="brand">
           <Truck size={28} color="#0ea5e9" />
-          <h1>Fleet Console</h1>
+          <h1>{t('fleet_console')}</h1>
         </div>
         <nav>
           {tabs.map((tab) => {
@@ -355,6 +402,26 @@ function App() {
           </div>
           <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {message && <p className="message" style={{ fontSize: '0.9rem', color: '#38bdf8', fontWeight: 600 }}>{message}</p>}
+            <select 
+              value={lang} 
+              onChange={(e) => changeLanguage(e.target.value)} 
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--panel-border)',
+                color: 'var(--text-main)',
+                borderRadius: '20px',
+                padding: '0 12px',
+                height: '38px',
+                fontSize: '0.85rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                outline: 'none',
+                transition: 'all var(--transition)'
+              }}
+            >
+              <option value="en" style={{ background: '#0f172a' }}>EN</option>
+              <option value="hi" style={{ background: '#0f172a' }}>हिन्दी (HI)</option>
+            </select>
             <button onClick={loadAll} disabled={loading} title="Refresh data" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: 'auto', height: '38px', borderRadius: '20px', padding: '0 16px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--panel-border)', color: 'var(--text-main)', cursor: 'pointer', transition: 'all var(--transition)' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={loading ? 'spin-anim' : ''} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
                 <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -362,7 +429,7 @@ function App() {
                 <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
                 <path d="M16 16h5v5" />
               </svg>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.02em' }}>Refresh</span>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.02em' }}>{t('refresh')}</span>
             </button>
             <button onClick={handleLogout} title="Sign out" style={{ display: 'flex', alignItems: 'center', gap: '8px', width: 'auto', height: '38px', borderRadius: '20px', padding: '0 16px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid var(--panel-border)', color: 'var(--text-main)', cursor: 'pointer', transition: 'all var(--transition)' }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
@@ -370,10 +437,11 @@ function App() {
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.02em' }}>Sign Out</span>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.02em' }}>{t('sign_out')}</span>
             </button>
           </div>
         </header>
+
 
         {activeTab === 'dashboard' && (
           <div className="view-grid">
@@ -453,6 +521,7 @@ function App() {
 
 /* ── 1. Dashboard View ── */
 const Dashboard = memo(function Dashboard({ data }) {
+  const { t } = useTranslation();
   if (!data) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
       <section className="metric-strip">
@@ -469,31 +538,31 @@ const Dashboard = memo(function Dashboard({ data }) {
       <section className="metric-strip">
         <div className="metric-card">
           <div className="metric-icon-wrapper"><Truck size={24} /></div>
-          <div className="metric-info"><h3>{data.totalVehicles}</h3><p>Registered Trucks</p></div>
+          <div className="metric-info"><h3>{data.totalVehicles}</h3><p>{t('registered_trucks')}</p></div>
         </div>
         <div className="metric-card">
           <div className="metric-icon-wrapper" style={{ color: '#10b981', background: 'rgba(16,185,129,0.1)' }}><CheckCircle2 size={24} /></div>
-          <div className="metric-info"><h3>{data.operationalVehicles}</h3><p>Operational</p></div>
+          <div className="metric-info"><h3>{data.operationalVehicles}</h3><p>{t('operational')}</p></div>
         </div>
         <div className="metric-card">
           <div className="metric-icon-wrapper" style={{ color: '#fbbf24', background: 'rgba(245,158,11,0.1)' }}><Wrench size={24} /></div>
-          <div className="metric-info"><h3>{data.maintenanceVehicles}</h3><p>In Maintenance</p></div>
+          <div className="metric-info"><h3>{data.maintenanceVehicles}</h3><p>{t('in_maintenance')}</p></div>
         </div>
         <div className="metric-card">
           <div className="metric-icon-wrapper" style={{ color: '#a78bfa', background: 'rgba(139,92,246,0.1)' }}><Users2 size={24} /></div>
-          <div className="metric-info"><h3>{data.totalDrivers}</h3><p>Total Drivers</p></div>
+          <div className="metric-info"><h3>{data.totalDrivers}</h3><p>{t('total_drivers')}</p></div>
         </div>
       </section>
 
       <section className="panel wide">
-        <h3 style={{ marginBottom: 20 }}>Fleet Operations Summary</h3>
+        <h3 style={{ marginBottom: 20 }}>{t('fleet_operations_summary')}</h3>
         <div className="fleet-dashboard-grid">
-          <div className="fleet-summary-card"><span className="number">{data.availableDrivers}</span><span className="label">Available Drivers</span></div>
-          <div className="fleet-summary-card"><span className="number">{data.activeDrivers}</span><span className="label">Drivers On Route</span></div>
-          <div className="fleet-summary-card"><span className="number">{data.unassignedDeliveries}</span><span className="label">Pending Packages</span></div>
-          <div className="fleet-summary-card"><span className="number">{data.inTransitDeliveries}</span><span className="label">In Transit</span></div>
-          <div className="fleet-summary-card"><span className="number">{data.completedDeliveries}</span><span className="label">Delivered Today</span></div>
-          <div className="fleet-summary-card"><span className="number">{data.activeRoutes}</span><span className="label">Active Routes</span></div>
+          <div className="fleet-summary-card"><span className="number">{data.availableDrivers}</span><span className="label">{t('available_drivers')}</span></div>
+          <div className="fleet-summary-card"><span className="number">{data.activeDrivers}</span><span className="label">{t('drivers_on_route')}</span></div>
+          <div className="fleet-summary-card"><span className="number">{data.unassignedDeliveries}</span><span className="label">{t('pending_packages')}</span></div>
+          <div className="fleet-summary-card"><span className="number">{data.inTransitDeliveries}</span><span className="label">{t('in_transit')}</span></div>
+          <div className="fleet-summary-card"><span className="number">{data.completedDeliveries}</span><span className="label">{t('delivered_today')}</span></div>
+          <div className="fleet-summary-card"><span className="number">{data.activeRoutes}</span><span className="label">{t('active_routes')}</span></div>
         </div>
       </section>
     </>
@@ -525,6 +594,7 @@ const FleetView = memo(function FleetView({
   dPage,
   setDPage
 }) {
+  const { t } = useTranslation();
   const [showVForm, setShowVForm] = useState(false);
   const [showDForm, setShowDForm] = useState(false);
 
@@ -580,8 +650,8 @@ const FleetView = memo(function FleetView({
     <div className="view-grid">
       <section className="panel wide">
         <div className="panel-header">
-          <h3>Vehicle Registry</h3>
-          <button onClick={() => setShowVForm(!showVForm)}><Plus size={16} /> {showVForm ? 'Cancel' : 'Register Vehicle'}</button>
+          <h3>{t('vehicle_registry')}</h3>
+          <button onClick={() => setShowVForm(!showVForm)}><Plus size={16} /> {showVForm ? t('cancel') : t('register_vehicle_btn')}</button>
         </div>
 
         {/* Searching & Filtering controls */}
@@ -591,10 +661,10 @@ const FleetView = memo(function FleetView({
             <input placeholder="Search make, model, license plate..." value={vSearch} onChange={(e) => { setVSearch(e.target.value); setVPage(0); }} style={{ paddingLeft: '40px' }} />
           </div>
           <select value={vStatus} onChange={(e) => { setVStatus(e.target.value); setVPage(0); }} style={{ width: '180px' }}>
-            <option value="">All Statuses</option>
-            <option value="OPERATIONAL">Operational</option>
-            <option value="IN_MAINTENANCE">In Maintenance</option>
-            <option value="SCHEDULED_MAINTENANCE">Scheduled Maintenance</option>
+            <option value="">{t('all_statuses')}</option>
+            <option value="OPERATIONAL">{t('operational')}</option>
+            <option value="IN_MAINTENANCE">{t('in_maintenance')}</option>
+            <option value="SCHEDULED_MAINTENANCE">{t('scheduled_maintenance')}</option>
           </select>
         </div>
 
@@ -607,12 +677,12 @@ const FleetView = memo(function FleetView({
             <input required type="number" min="1" step="any" placeholder="Weight Limit (kg)" value={vForm.capacityKg} onChange={(e) => setVForm({ ...vForm, capacityKg: Number(e.target.value) })} />
             <input type="number" min="0" step="any" placeholder="Volume Limit (m3)" value={vForm.capacityVolumeCbm} onChange={(e) => setVForm({ ...vForm, capacityVolumeCbm: Number(e.target.value) })} />
             <select value={vForm.fuelType} onChange={(e) => setVForm({ ...vForm, fuelType: e.target.value })}>
-              <option value="DIESEL">Diesel</option>
-              <option value="PETROL">Petrol</option>
-              <option value="CNG">CNG</option>
-              <option value="ELECTRIC">Electric</option>
+              <option value="DIESEL">{t('diesel')}</option>
+              <option value="PETROL">{t('petrol')}</option>
+              <option value="CNG">{t('cng')}</option>
+              <option value="ELECTRIC">{t('electric')}</option>
             </select>
-            <button type="submit">Submit</button>
+            <button type="submit">{t('submit')}</button>
           </form>
         )}
 
@@ -624,35 +694,35 @@ const FleetView = memo(function FleetView({
                   <h4>{v.licensePlate}</h4>
                   <div className="subtitle">{v.make} {v.model} ({v.year})</div>
                 </div>
-                <span className={statusClass(v.maintenanceStatus)}>{v.maintenanceStatus}</span>
+                <span className={statusClass(v.maintenanceStatus)}>{t(v.maintenanceStatus.toLowerCase())}</span>
               </div>
               <div className="fleet-card-body">
-                <div className="fleet-card-stat"><label>Weight Capacity</label><span>{v.capacityKg} kg</span></div>
-                <div className="fleet-card-stat"><label>Vol Capacity</label><span>{v.capacityVolumeCbm || '-'} m3</span></div>
-                <div className="fleet-card-stat"><label>Fuel Type</label><span>{v.fuelType}</span></div>
-                <div className="fleet-card-stat"><label>Odometer</label><span>{v.currentOdometerKm?.toFixed(1) || 0} km</span></div>
+                <div className="fleet-card-stat"><label>{t('weight_capacity')}</label><span>{v.capacityKg} kg</span></div>
+                <div className="fleet-card-stat"><label>{t('vol_capacity')}</label><span>{v.capacityVolumeCbm || '-'} m3</span></div>
+                <div className="fleet-card-stat"><label>{t('fuel_type')}</label><span>{t(v.fuelType.toLowerCase())}</span></div>
+                <div className="fleet-card-stat"><label>{t('odometer')}</label><span>{v.currentOdometerKm?.toFixed(1) || 0} km</span></div>
               </div>
               <div className="fleet-card-actions">
                 <button className="secondary" onClick={() => toggleMaintenance(v.id, v.maintenanceStatus)}>
-                  <Wrench size={12} /> {v.maintenanceStatus === 'OPERATIONAL' ? 'Service Required' : 'Mark Restored'}
+                  <Wrench size={12} /> {v.maintenanceStatus === 'OPERATIONAL' ? t('service_required_btn') : t('mark_restored_btn')}
                 </button>
               </div>
             </div>
           ))}
-          {vehicles.length === 0 && <div className="empty-state" style={{ gridColumn: '1/-1' }}><Truck size={40} /><p>No matching vehicles found.</p></div>}
+          {vehicles.length === 0 && <div className="empty-state" style={{ gridColumn: '1/-1' }}><Truck size={40} /><p>{t('no_matching_vehicles')}</p></div>}
         </div>
 
         {/* Pagination Controls */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-          <button className="secondary" disabled={vPage === 0} onClick={() => setVPage(v => v - 1)}>Prev</button>
-          <button className="secondary" disabled={vehicles.length < 10} onClick={() => setVPage(v => v + 1)}>Next</button>
+          <button className="secondary" disabled={vPage === 0} onClick={() => setVPage(v => v - 1)}>{t('prev')}</button>
+          <button className="secondary" disabled={vehicles.length < 10} onClick={() => setVPage(v => v + 1)}>{t('next')}</button>
         </div>
       </section>
 
       <section className="panel wide">
         <div className="panel-header">
-          <h3>Driver Manifest Registry</h3>
-          <button onClick={() => setShowDForm(!showDForm)}><Plus size={16} /> {showDForm ? 'Cancel' : 'Register Driver'}</button>
+          <h3>{t('driver_manifest_registry')}</h3>
+          <button onClick={() => setShowDForm(!showDForm)}><Plus size={16} /> {showDForm ? t('cancel') : t('register_driver_btn')}</button>
         </div>
 
         {/* Search controls */}
@@ -662,9 +732,9 @@ const FleetView = memo(function FleetView({
             <input placeholder="Search driver name, license, email..." value={dSearch} onChange={(e) => { setDSearch(e.target.value); setDPage(0); }} style={{ paddingLeft: '40px' }} />
           </div>
           <select value={dStatus} onChange={(e) => { setDStatus(e.target.value); setDPage(0); }} style={{ width: '180px' }}>
-            <option value="">All Statuses</option>
-            <option value="AVAILABLE">Available</option>
-            <option value="ON_ROUTE">On Route</option>
+            <option value="">{t('all_statuses')}</option>
+            <option value="AVAILABLE">{t('available')}</option>
+            <option value="ON_ROUTE">{t('on_route')}</option>
           </select>
         </div>
 
@@ -675,12 +745,12 @@ const FleetView = memo(function FleetView({
             <input type="email" placeholder="Email" value={dForm.email} onChange={(e) => setDForm({ ...dForm, email: e.target.value })} />
             <input required placeholder="License Number" value={dForm.licenseNumber} onChange={(e) => setDForm({ ...dForm, licenseNumber: e.target.value })} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>License Expiry</label>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('license_expiry')}</label>
               <input required type="date" value={dForm.licenseExpiry} onChange={(e) => setDForm({ ...dForm, licenseExpiry: e.target.value })} />
             </div>
             <input type="time" placeholder="Shift Start" value={dForm.shiftStart} onChange={(e) => setDForm({ ...dForm, shiftStart: e.target.value })} />
             <input type="time" placeholder="Shift End" value={dForm.shiftEnd} onChange={(e) => setDForm({ ...dForm, shiftEnd: e.target.value })} />
-            <button type="submit">Submit</button>
+            <button type="submit">{t('submit')}</button>
           </form>
         )}
 
@@ -692,29 +762,29 @@ const FleetView = memo(function FleetView({
                   <h4>{d.name}</h4>
                   <div className="subtitle">{d.licenseNumber}</div>
                 </div>
-                <span className={statusClass(d.status)}>{d.status}</span>
+                <span className={statusClass(d.status)}>{t(d.status.toLowerCase())}</span>
               </div>
               <div className="fleet-card-body">
-                <div className="fleet-card-stat"><label>Duty Shift</label><span>{d.shiftStart || '08:00'} - {d.shiftEnd || '18:00'}</span></div>
-                <div className="fleet-card-stat"><label>License Expiry</label><span style={{ color: d.licenseValid ? '#34d399' : '#f87171' }}>{new Date(d.licenseExpiry).toLocaleDateString()}</span></div>
-                <div className="fleet-card-stat"><label>Phone</label><span>{d.contactNumber || '-'}</span></div>
+                <div className="fleet-card-stat"><label>{t('duty_shift')}</label><span>{d.shiftStart || '08:00'} - {d.shiftEnd || '18:00'}</span></div>
+                <div className="fleet-card-stat"><label>{t('license_expiry')}</label><span style={{ color: d.licenseValid ? '#34d399' : '#f87171' }}>{new Date(d.licenseExpiry).toLocaleDateString()}</span></div>
+                <div className="fleet-card-stat"><label>{t('phone')}</label><span>{d.contactNumber || '-'}</span></div>
                 <div className="fleet-card-stat" style={{ alignItems: 'center' }}>
-                  <label>Vehicle</label>
+                  <label>{t('vehicle')}</label>
                   <select style={{ width: 140, padding: '4px 8px', fontSize: '0.8rem', minHeight: 28 }} value={d.assignedVehicleId || ''} onChange={(e) => assignVehicle(d.id, e.target.value)}>
-                    <option value="">Unassigned</option>
+                    <option value="">{t('unassigned')}</option>
                     {vehicles.filter(v => v.maintenanceStatus === 'OPERATIONAL').map(v => <option key={v.id} value={v.id}>{v.licensePlate}</option>)}
                   </select>
                 </div>
               </div>
             </div>
           ))}
-          {drivers.length === 0 && <div className="empty-state" style={{ gridColumn: '1/-1' }}><Users2 size={40} /><p>No matching drivers found.</p></div>}
+          {drivers.length === 0 && <div className="empty-state" style={{ gridColumn: '1/-1' }}><Users2 size={40} /><p>{t('no_matching_drivers')}</p></div>}
         </div>
 
         {/* Pagination Controls */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-          <button className="secondary" disabled={dPage === 0} onClick={() => setDPage(v => v - 1)}>Prev</button>
-          <button className="secondary" disabled={drivers.length < 10} onClick={() => setDPage(v => v + 1)}>Next</button>
+          <button className="secondary" disabled={dPage === 0} onClick={() => setDPage(v => v - 1)}>{t('prev')}</button>
+          <button className="secondary" disabled={drivers.length < 10} onClick={() => setDPage(v => v + 1)}>{t('next')}</button>
         </div>
       </section>
     </div>
@@ -734,6 +804,7 @@ const DeliveriesView = memo(function DeliveriesView({
   tPage,
   setTPage
 }) {
+  const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const emptyDeliveryForm = { deliveryAddress: '', recipientName: '', recipientPhone: '', latitude: '', longitude: '', packageWeightKg: '', packageVolumeCbm: '', timeWindowStart: '', timeWindowEnd: '', notes: '' };
   const [form, setForm] = useState(emptyDeliveryForm);
@@ -780,8 +851,8 @@ const DeliveriesView = memo(function DeliveriesView({
     <div className="view-grid">
       <section className="panel wide">
         <div className="panel-header">
-          <h3>Delivery Registry Stop Orders</h3>
-          <button onClick={() => setShowForm(!showForm)}><Plus size={16} /> {showForm ? 'Cancel' : 'New Outbound Stop'}</button>
+          <h3>{t('delivery_registry_stop_orders')}</h3>
+          <button onClick={() => setShowForm(!showForm)}><Plus size={16} /> {showForm ? t('cancel') : t('new_outbound_stop_btn')}</button>
         </div>
 
         {/* Searching & Filtering controls */}
@@ -791,12 +862,12 @@ const DeliveriesView = memo(function DeliveriesView({
             <input placeholder="Search destination, recipient..." value={tSearch} onChange={(e) => { setTSearch(e.target.value); setTPage(0); }} style={{ paddingLeft: '40px' }} />
           </div>
           <select value={tStatus} onChange={(e) => { setTStatus(e.target.value); setTPage(0); }} style={{ width: '180px' }}>
-            <option value="">All Statuses</option>
-            <option value="UNASSIGNED">Unassigned</option>
-            <option value="DISPATCHED">Dispatched</option>
-            <option value="IN_TRANSIT">In Transit</option>
-            <option value="DELIVERED">Delivered</option>
-            <option value="FAILED">Failed</option>
+            <option value="">{t('all_statuses')}</option>
+            <option value="UNASSIGNED">{t('unassigned')}</option>
+            <option value="DISPATCHED">{t('dispatched')}</option>
+            <option value="IN_TRANSIT">{t('in_transit')}</option>
+            <option value="DELIVERED">{t('delivered')}</option>
+            <option value="FAILED">{t('failed')}</option>
           </select>
         </div>
 
@@ -810,15 +881,15 @@ const DeliveriesView = memo(function DeliveriesView({
             <input type="number" min="0" step="any" placeholder="Weight (kg)" value={form.packageWeightKg} onChange={(e) => setForm({ ...form, packageWeightKg: e.target.value })} />
             <input type="number" min="0" step="any" placeholder="Volume (m3)" value={form.packageVolumeCbm} onChange={(e) => setForm({ ...form, packageVolumeCbm: e.target.value })} />
             <div className="field-group">
-              <label>Window Start</label>
+              <label>{t('window_start')}</label>
               <input type="datetime-local" value={form.timeWindowStart} onChange={(e) => setForm({ ...form, timeWindowStart: e.target.value })} />
             </div>
             <div className="field-group">
-              <label>Window End</label>
+              <label>{t('window_end')}</label>
               <input type="datetime-local" value={form.timeWindowEnd} onChange={(e) => setForm({ ...form, timeWindowEnd: e.target.value })} />
             </div>
             <input placeholder="Notes / Instruction" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-            <button type="submit">Create Stop</button>
+            <button type="submit">{t('create_stop')}</button>
           </form>
         )}
 
@@ -827,14 +898,14 @@ const DeliveriesView = memo(function DeliveriesView({
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Destination Address</th>
-                <th>Recipient</th>
-                <th>Coordinates</th>
-                <th>Weight (kg)</th>
-                <th>Time Window</th>
-                <th>Status</th>
-                <th>Route ID</th>
-                <th>Actions</th>
+                <th>{t('destination_address')}</th>
+                <th>{t('recipient')}</th>
+                <th>{t('coordinates')}</th>
+                <th>{t('weight_kg')}</th>
+                <th>{t('time_window')}</th>
+                <th>{t('status')}</th>
+                <th>{t('route_id')}</th>
+                <th>{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -843,19 +914,19 @@ const DeliveriesView = memo(function DeliveriesView({
                   <td>{t.id}</td>
                   <td>{t.deliveryAddress}</td>
                   <td>
-                    <strong>{t.recipientName || 'Unassigned'}</strong>
+                    <strong>{t.recipientName || t('unassigned')}</strong>
                     {t.recipientPhone && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t.recipientPhone}</div>}
                   </td>
                   <td><span className="gps-badge"><MapPin size={12} /> {t.latitude?.toFixed(4)}, {t.longitude?.toFixed(4)}</span></td>
                   <td>{t.packageWeightKg || '-'}</td>
                   <td>{formatTimeWindow(t.timeWindowStart, t.timeWindowEnd)}</td>
-                  <td><span className={statusClass(t.deliveryStatus)}>{t.deliveryStatus}</span></td>
+                  <td><span className={statusClass(t.deliveryStatus)}>{t(t.deliveryStatus.toLowerCase())}</span></td>
                   <td>{t.routeName || '-'}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
                       {getCandidateTransitions(t.deliveryStatus).map(st => (
                         <button key={st} className="secondary" style={{ fontSize: '0.75rem', padding: '6px 12px', minHeight: 28 }} onClick={() => updateStatus(t.id, st)}>
-                          {st}
+                          {t(st.toLowerCase())}
                         </button>
                       ))}
                     </div>
@@ -865,12 +936,12 @@ const DeliveriesView = memo(function DeliveriesView({
             </tbody>
           </table>
         </div>
-        {deliveryTasks.length === 0 && <div className="empty-state"><MapPin size={40} /><p>No delivery tasks found.</p></div>}
+        {deliveryTasks.length === 0 && <div className="empty-state"><MapPin size={40} /><p>{t('no_delivery_tasks')}</p></div>}
 
         {/* Pagination */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-          <button className="secondary" disabled={tPage === 0} onClick={() => setTPage(v => v - 1)}>Prev</button>
-          <button className="secondary" disabled={deliveryTasks.length < 10} onClick={() => setTPage(v => v + 1)}>Next</button>
+          <button className="secondary" disabled={tPage === 0} onClick={() => setTPage(v => v - 1)}>{t('prev')}</button>
+          <button className="secondary" disabled={deliveryTasks.length < 10} onClick={() => setTPage(v => v + 1)}>{t('next')}</button>
         </div>
       </section>
     </div>
@@ -895,6 +966,7 @@ const RoutesView = memo(function RoutesView({
   rPage,
   setRPage
 }) {
+  const { t } = useTranslation();
   const [showPlanner, setShowPlanner] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState([]);
   const [vId, setVId] = useState('');
@@ -1018,9 +1090,9 @@ const RoutesView = memo(function RoutesView({
     <div className="view-grid">
       <section className="panel wide">
         <div className="panel-header">
-          <h3>Optimized Delivery Routes</h3>
+          <h3>{t('optimized_delivery_routes')}</h3>
           {!isDriver && (
-            <button onClick={() => setShowPlanner(!showPlanner)}><Navigation size={16} /> {showPlanner ? 'Cancel' : 'Plan Optimized Route'}</button>
+            <button onClick={() => setShowPlanner(!showPlanner)}><Navigation size={16} /> {showPlanner ? t('cancel') : t('plan_optimized_route_btn')}</button>
           )}
         </div>
 
@@ -1032,17 +1104,17 @@ const RoutesView = memo(function RoutesView({
               <input placeholder="Search route name, driver, vehicle..." value={rSearch} onChange={(e) => { setRSearch(e.target.value); setRPage(0); }} style={{ paddingLeft: '40px' }} />
             </div>
             <select value={rStatus} onChange={(e) => { setRStatus(e.target.value); setRPage(0); }} style={{ width: '180px' }}>
-              <option value="">All Statuses</option>
-              <option value="PLANNED">Planned</option>
-              <option value="ACTIVE">Active</option>
-              <option value="COMPLETED">Completed</option>
+              <option value="">{t('all_statuses')}</option>
+              <option value="PLANNED">{t('planned')}</option>
+              <option value="ACTIVE">{t('active')}</option>
+              <option value="COMPLETED">{t('completed')}</option>
             </select>
           </div>
         )}
 
         {showPlanner && !isDriver && (
           <div style={{ marginBottom: 30 }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>Select unassigned delivery stops, then choose a compatible truck, driver, and departure time. The planner checks capacity, driver license, assigned vehicle, shift, and delivery windows before optimizing.</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>{t('planner_instructions')}</p>
             {unassignedTasks.length > 0 ? (
               <div className="stop-list" style={{ marginBottom: 20 }}>
                 {unassignedTasks.map(t => (
@@ -1057,15 +1129,15 @@ const RoutesView = memo(function RoutesView({
                 ))}
               </div>
             ) : (
-              <div className="empty-state" style={{ padding: 24 }}><MapPin size={32} /><p>No unassigned delivery stops available.</p></div>
+              <div className="empty-state" style={{ padding: 24 }}><MapPin size={32} /><p>{t('no_unassigned_stops')}</p></div>
             )}
 
             {selectedTasks.length > 0 && (
               <>
                 <div className="planning-summary">
-                  <div><strong>{selectedTasks.length}</strong><span>Stops</span></div>
-                  <div><strong>{selectedLoad.weightKg.toFixed(1)} kg</strong><span>Total Weight</span></div>
-                  <div><strong>{selectedLoad.volumeCbm.toFixed(1)} m3</strong><span>Total Volume</span></div>
+                  <div><strong>{selectedTasks.length}</strong><span>{t('stops')}</span></div>
+                  <div><strong>{selectedLoad.weightKg.toFixed(1)} kg</strong><span>{t('total_weight')}</span></div>
+                  <div><strong>{selectedLoad.volumeCbm.toFixed(1)} m3</strong><span>{t('total_volume')}</span></div>
                 </div>
                 {routeValidationErrors.length > 0 && (
                   <div className="warning-note">
@@ -1074,28 +1146,28 @@ const RoutesView = memo(function RoutesView({
                 )}
                 <form onSubmit={optimizeRoute} className="form-grid route-form">
                   <div className="field-group">
-                    <label>Select Operational Vehicle</label>
+                    <label>{t('select_operational_vehicle')}</label>
                     <select required value={vId} onChange={(e) => setVId(e.target.value)}>
-                      <option value="">Choose Vehicle</option>
+                      <option value="">{t('choose_vehicle')}</option>
                       {vehicles.filter(v => v.maintenanceStatus === 'OPERATIONAL').map(v => (
                         <option key={v.id} value={v.id}>{v.licensePlate} ({v.capacityKg} kg / {v.capacityVolumeCbm || '-'} m3)</option>
                       ))}
                     </select>
                   </div>
                   <div className="field-group">
-                    <label>Select Available Driver</label>
+                    <label>{t('select_available_driver')}</label>
                     <select required value={dId} onChange={(e) => setDId(e.target.value)}>
-                      <option value="">Choose Driver</option>
+                      <option value="">{t('choose_driver')}</option>
                       {drivers.filter(d => d.status === 'AVAILABLE' && d.licenseValid).map(d => (
                         <option key={d.id} value={d.id}>{d.name}{d.assignedVehiclePlate ? ` - ${d.assignedVehiclePlate}` : ''}</option>
                       ))}
                     </select>
                   </div>
                   <div className="field-group">
-                    <label>Planned Departure</label>
+                    <label>{t('planned_departure')}</label>
                     <input required type="datetime-local" value={plannedDeparture} onChange={(e) => setPlannedDeparture(e.target.value)} />
                   </div>
-                  <button type="submit" disabled={!canOptimize} style={{ height: 48 }}><Navigation size={14} /> Calculate Route</button>
+                  <button type="submit" disabled={!canOptimize} style={{ height: 48 }}><Navigation size={14} /> {t('calculate_route_btn')}</button>
                 </form>
               </>
             )}
@@ -1118,33 +1190,33 @@ const RoutesView = memo(function RoutesView({
                         borderRadius: '4px',
                         border: '1px solid currentColor'
                       }}>
-                        Score: {r.routeScore}
+                        {t('score')}: {r.routeScore}
                       </span>
                     )}
                   </h4>
                   <div className="subtitle">{r.vehiclePlate} &bull; {r.driverName}</div>
                 </div>
-                <span className={statusClass(r.status)}>{r.status}</span>
+                <span className={statusClass(r.status)}>{t(r.status.toLowerCase())}</span>
               </div>
 
               {r.totalDistanceKm && (
                 <div className="route-metrics">
-                  <div className="route-metric"><span className="value">{r.totalDistanceKm}</span><span className="label">Dist (km)</span></div>
-                  <div className="route-metric"><span className="value">{r.estimatedDurationMinutes}</span><span className="label">Dur (min)</span></div>
-                  <div className="route-metric"><span className="value">{r.totalFuelEstimateLiters}</span><span className="label">Fuel (L)</span></div>
-                  <div className="route-metric"><span className="value">{r.stopCount}</span><span className="label">Stops</span></div>
+                  <div className="route-metric"><span className="value">{r.totalDistanceKm}</span><span className="label">{t('dist_km')}</span></div>
+                  <div className="route-metric"><span className="value">{r.estimatedDurationMinutes}</span><span className="label">{t('dur_min')}</span></div>
+                  <div className="route-metric"><span className="value">{r.totalFuelEstimateLiters}</span><span className="label">{t('fuel_l')}</span></div>
+                  <div className="route-metric"><span className="value">{r.stopCount}</span><span className="label">{t('stops')}</span></div>
                 </div>
               )}
 
               <div className="fleet-card-actions">
                 {r.status === 'PLANNED' && !isDriver && (
-                  <button onClick={() => dispatchRoute(r.id)}><Navigation size={14} /> Dispatch</button>
+                  <button onClick={() => dispatchRoute(r.id)}><Navigation size={14} /> {t('dispatch_btn')}</button>
                 )}
                 {r.status === 'ACTIVE' && !isDriver && (
-                  <button onClick={() => completeRoute(r.id)} className="secondary"><CheckCircle2 size={14} /> Complete Route</button>
+                  <button onClick={() => completeRoute(r.id)} className="secondary"><CheckCircle2 size={14} /> {t('complete_route_btn')}</button>
                 )}
                 <button className="secondary" onClick={() => setExpandedRoute(expandedRoute === r.id ? null : r.id)}>
-                  {expandedRoute === r.id ? <EyeOff size={14} /> : <Eye size={14} />} {expandedRoute === r.id ? 'Hide stops' : 'Manifest list'}
+                  {expandedRoute === r.id ? <EyeOff size={14} /> : <Eye size={14} />} {expandedRoute === r.id ? t('hide_stops_btn') : t('manifest_list_btn')}
                 </button>
               </div>
 
@@ -1157,15 +1229,15 @@ const RoutesView = memo(function RoutesView({
                         <h5>{stop.deliveryAddress}</h5>
                         <p>{stop.recipientName} &bull; {stop.packageWeightKg || 0} kg</p>
                       </div>
-                      <span className={statusClass(stop.deliveryStatus)}>{stop.deliveryStatus}</span>
+                      <span className={statusClass(stop.deliveryStatus)}>{t(stop.deliveryStatus.toLowerCase())}</span>
                       
                       {/* Driver actions directly in the stops list */}
                       {isDriver && r.status === 'ACTIVE' && (
                         <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
                           {stop.deliveryStatus === 'IN_TRANSIT' && (
                             <>
-                              <button className="secondary" style={{ fontSize: '0.7rem', padding: '4px 8px', minHeight: '24px' }} onClick={() => updateStopStatus(stop.id, 'DELIVERED')}>Deliver</button>
-                              <button className="danger" style={{ fontSize: '0.7rem', padding: '4px 8px', minHeight: '24px' }} onClick={() => updateStopStatus(stop.id, 'FAILED')}>Fail</button>
+                              <button className="secondary" style={{ fontSize: '0.7rem', padding: '4px 8px', minHeight: '24px' }} onClick={() => updateStopStatus(stop.id, 'DELIVERED')}>{t('deliver')}</button>
+                              <button className="danger" style={{ fontSize: '0.7rem', padding: '4px 8px', minHeight: '24px' }} onClick={() => updateStopStatus(stop.id, 'FAILED')}>{t('fail')}</button>
                             </>
                           )}
                         </div>
@@ -1176,14 +1248,14 @@ const RoutesView = memo(function RoutesView({
               )}
             </div>
           ))}
-          {filteredRoutes.length === 0 && <div className="empty-state" style={{ gridColumn: '1/-1' }}><Navigation size={40} /><p>No routes optimized yet.</p></div>}
+          {filteredRoutes.length === 0 && <div className="empty-state" style={{ gridColumn: '1/-1' }}><Navigation size={40} /><p>{t('no_routes_optimized')}</p></div>}
         </div>
 
         {/* Pagination */}
         {!isDriver && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
-            <button className="secondary" disabled={rPage === 0} onClick={() => setRPage(v => v - 1)}>Prev</button>
-            <button className="secondary" disabled={routes.length < 10} onClick={() => setRPage(v => v + 1)}>Next</button>
+            <button className="secondary" disabled={rPage === 0} onClick={() => setRPage(v => v - 1)}>{t('prev')}</button>
+            <button className="secondary" disabled={routes.length < 10} onClick={() => setRPage(v => v + 1)}>{t('next')}</button>
           </div>
         )}
       </section>
