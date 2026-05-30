@@ -27,6 +27,12 @@ public class DataSeeder {
         @Value("${seed.operator-password:operator123}") String operatorPassword
     ) {
         return args -> {
+            // Skip seeding if demo data already exists (prevents data loss on restart)
+            if (userRepository.count() > 0) {
+                System.out.println("Database already seeded — skipping. Clear tables manually or drop the DB to re-seed.");
+                return;
+            }
+
             // 1. Clear old data in order of foreign key relationships to prevent constraint violations
             System.out.println("Cleaning database for fresh seeding...");
             deliveryTaskRepository.deleteAll();
