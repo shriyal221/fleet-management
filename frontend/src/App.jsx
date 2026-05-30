@@ -217,6 +217,26 @@ function App() {
                   <h2>Welcome back</h2>
                   <p>Sign in to your dispatcher terminal</p>
                 </div>
+                
+                {/* 1-Click Professional Demo Quick Access Shortcuts */}
+                <div className="demo-accounts-bar" style={{
+                  background: 'rgba(15, 23, 42, 0.45)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}>
+                  <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Quick Demo Access (1-Click Fill)</span>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button type="button" onClick={() => setLoginForm({ username: 'admin@fleetpro.com', password: 'admin123' })} style={{ flex: 1, padding: '6px 8px', fontSize: '0.72rem', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', color: '#34d399', cursor: 'pointer', fontWeight: 800, transition: 'all 0.2s' }}>ADMIN</button>
+                    <button type="button" onClick={() => setLoginForm({ username: 'dispatcher@fleetpro.com', password: 'dispatcher123' })} style={{ flex: 1, padding: '6px 8px', fontSize: '0.72rem', borderRadius: '6px', background: 'rgba(14, 165, 233, 0.1)', border: '1px solid rgba(14, 165, 233, 0.2)', color: '#38bdf8', cursor: 'pointer', fontWeight: 800, transition: 'all 0.2s' }}>DISPATCHER</button>
+                    <button type="button" onClick={() => setLoginForm({ username: 'driver@fleetpro.com', password: 'operator123' })} style={{ flex: 1, padding: '6px 8px', fontSize: '0.72rem', borderRadius: '6px', background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.2)', color: '#818cf8', cursor: 'pointer', fontWeight: 800, transition: 'all 0.2s' }}>DRIVER</button>
+                  </div>
+                </div>
+
                 <form onSubmit={handleLogin} className="auth-form">
                   <div className="field-group">
                     <label>Username</label>
@@ -423,7 +443,16 @@ function App() {
 
 /* ── 1. Dashboard View ── */
 const Dashboard = memo(function Dashboard({ data }) {
-  if (!data) return <div className="empty-state"><RefreshCw size={40} /><p>Loading dashboard metrics...</p></div>;
+  if (!data) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+      <section className="metric-strip">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="metric-card skeleton-pulse" style={{ height: '94px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px' }} />
+        ))}
+      </section>
+      <section className="panel wide skeleton-pulse" style={{ height: '240px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px' }} />
+    </div>
+  );
 
   return (
     <>

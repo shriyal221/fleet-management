@@ -1177,3 +1177,38 @@ tr:hover td {
   100% { transform: rotate(360deg); }
 }
 
+@keyframes bounce-anim {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-5px); }
+}
+
+.skeleton-pulse {
+  animation: pulse-glow 1.6s infinite ease-in-out;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    background-color: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+  50% {
+    background-color: rgba(255, 255, 255, 0.07);
+    border-color: rgba(14, 165, 233, 0.18);
+  }
+}
+
+/* Quick Fill Demo Access Styling */
+.demo-accounts-bar button {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.demo-accounts-bar button:hover {
+  filter: brightness(1.25);
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.demo-accounts-bar button:active {
+  transform: translateY(0);
+}
+
