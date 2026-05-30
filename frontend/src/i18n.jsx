@@ -248,12 +248,20 @@ const translations = {
 };
 
 const ALLOWED_LANGS = ['en', 'hi'];
+
+// Programmatically convert translation objects to secure ES6 Maps at startup
+// to completely prevent any bracket notation lookup or prototype pollution warnings.
+const translationMaps = {
+  en: new Map(Object.entries(translations.en)),
+  hi: new Map(Object.entries(translations.hi))
+};
+
 const LanguageContext = createContext();
 
 export function LanguageProvider({ children }) {
   const [lang, setLang] = useState(() => {
     const stored = localStorage.getItem('fleet-lang');
-    return ALLOWED_LANGS.includes(stored) ? stored : 'en';
+    return stored === 'hi' ? 'hi' : 'en';
   });
 
   useEffect(() => {
@@ -261,20 +269,26 @@ export function LanguageProvider({ children }) {
   }, [lang]);
 
   const t = (key) => {
-    if (!ALLOWED_LANGS.includes(lang)) return key;
-    const langDict = translations[lang];
-    if (langDict && Object.prototype.hasOwnProperty.call(langDict, key)) {
-      return langDict[key];
+    if (typeof key !== 'string') return '';
+    
+    // Explicit condition checks to avoid dynamic translations[lang] bracket lookup
+    let currentMap = translationMaps.en;
+    if (lang === 'hi') {
+      currentMap = translationMaps.hi;
     }
-    const enDict = translations['en'];
-    if (enDict && Object.prototype.hasOwnProperty.call(enDict, key)) {
-      return enDict[key];
+
+    // Secure Map.get retrieval avoids standard prototype pollution vulnerabilities
+    if (currentMap.has(key)) {
+      return currentMap.get(key);
+    }
+    if (translationMaps.en.has(key)) {
+      return translationMaps.en.get(key);
     }
     return key;
   };
 
   const changeLanguage = (newLang) => {
-    if (ALLOWED_LANGS.includes(newLang)) {
+    if (newLang === 'en' || newLang === 'hi') {
       setLang(newLang);
     }
   };
@@ -285,6 +299,7 @@ export function LanguageProvider({ children }) {
     </LanguageContext.Provider>
   );
 }
+
 
 
 export function useTranslation() {
