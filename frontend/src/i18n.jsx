@@ -247,11 +247,13 @@ const translations = {
   }
 };
 
+const ALLOWED_LANGS = ['en', 'hi'];
 const LanguageContext = createContext();
 
 export function LanguageProvider({ children }) {
   const [lang, setLang] = useState(() => {
-    return localStorage.getItem('fleet-lang') || 'en';
+    const stored = localStorage.getItem('fleet-lang');
+    return ALLOWED_LANGS.includes(stored) ? stored : 'en';
   });
 
   useEffect(() => {
@@ -259,12 +261,20 @@ export function LanguageProvider({ children }) {
   }, [lang]);
 
   const t = (key) => {
-    if (!translations[lang]) return key;
-    return translations[lang][key] || translations['en'][key] || key;
+    if (!ALLOWED_LANGS.includes(lang)) return key;
+    const langDict = translations[lang];
+    if (langDict && Object.prototype.hasOwnProperty.call(langDict, key)) {
+      return langDict[key];
+    }
+    const enDict = translations['en'];
+    if (enDict && Object.prototype.hasOwnProperty.call(enDict, key)) {
+      return enDict[key];
+    }
+    return key;
   };
 
   const changeLanguage = (newLang) => {
-    if (translations[newLang]) {
+    if (ALLOWED_LANGS.includes(newLang)) {
       setLang(newLang);
     }
   };
@@ -275,6 +285,7 @@ export function LanguageProvider({ children }) {
     </LanguageContext.Provider>
   );
 }
+
 
 export function useTranslation() {
   const context = useContext(LanguageContext);
