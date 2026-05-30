@@ -364,10 +364,12 @@ public class DataSeeder {
             rPune.setRouteScore(98.1);
             rPune = routeRepository.save(rPune);
 
-            // Assign Tasks to Planned Pune Route (Keep tasks UNASSIGNED as they are only planned)
+            // Assign Tasks to Planned Pune Route
             tPune1.assignToRoute(rPune, 1);
+            tPune1.transitionStatus(DeliveryStatus.DISPATCHED);
             deliveryTaskRepository.save(tPune1);
             tPune3.assignToRoute(rPune, 2);
+            tPune3.transitionStatus(DeliveryStatus.DISPATCHED);
             deliveryTaskRepository.save(tPune3);
 
 
@@ -385,10 +387,13 @@ public class DataSeeder {
 
             // Assign Tasks to Chennai Route
             tChe3.assignToRoute(rChe, 1);
+            tChe3.transitionStatus(DeliveryStatus.DISPATCHED);
             deliveryTaskRepository.save(tChe3);
             tChe1.assignToRoute(rChe, 2);
+            tChe1.transitionStatus(DeliveryStatus.DISPATCHED);
             deliveryTaskRepository.save(tChe1);
             tChe4.assignToRoute(rChe, 3);
+            tChe4.transitionStatus(DeliveryStatus.DISPATCHED);
             deliveryTaskRepository.save(tChe4);
 
             System.out.println("SUCCESS: Database Seeding is complete! Relational constraints successfully maintained.");
