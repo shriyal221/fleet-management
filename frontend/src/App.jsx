@@ -131,6 +131,8 @@ function App() {
   useEffect(() => {
     if (!token) return;
 
+    let refreshTimer = null;
+
     // Establish WebSocket using SockJS fallback
     const socketUrl = `${API_URL}/ws`.replace('/api', '');
     const client = new Client({
@@ -149,14 +151,22 @@ function App() {
                 : v
             )
           );
-          // Refresh list to update delivery stops states in background
-          loadAll();
+          // Debounced refresh to update delivery stop statuses (max once per 10s)
+          if (!refreshTimer) {
+            refreshTimer = setTimeout(() => {
+              loadAll();
+              refreshTimer = null;
+            }, 10000);
+          }
         });
       }
     });
 
     client.activate();
-    return () => client.deactivate();
+    return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      client.deactivate();
+    };
   }, [token, loadAll]);
 
   useEffect(() => {
