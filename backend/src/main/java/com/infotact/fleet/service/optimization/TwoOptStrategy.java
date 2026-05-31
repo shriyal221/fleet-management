@@ -31,10 +31,13 @@ public class TwoOptStrategy implements RouteOptimizationStrategy {
             madeImprovement = false;
             for (int i = 1; i < n - 1; i++) {
                 for (int j = i + 1; j < n; j++) {
-                    double currentDist = distMatrix[improved[i - 1]][improved[i]]
-                            + distMatrix[improved[j]][improved[(j + 1) % n]];
-                    double newDist = distMatrix[improved[i - 1]][improved[j]]
-                            + distMatrix[improved[i]][improved[(j + 1) % n]];
+                    double currentDist = distMatrix[improved[i - 1]][improved[i]];
+                    double newDist = distMatrix[improved[i - 1]][improved[j]];
+
+                    if (j + 1 < n) {
+                        currentDist += distMatrix[improved[j]][improved[j + 1]];
+                        newDist += distMatrix[improved[i]][improved[j + 1]];
+                    }
 
                     if (newDist < currentDist - 0.01) {
                         reverse(improved, i, j);
