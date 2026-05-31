@@ -114,8 +114,6 @@ public class OsrmClient {
             totalDistanceMeters += haversine(coordinates.get(i)[1], coordinates.get(i)[0],
                                             coordinates.get(i + 1)[1], coordinates.get(i + 1)[0]) * 1000.0;
         }
-        totalDistanceMeters += haversine(coordinates.get(coordinates.size() - 1)[1], coordinates.get(coordinates.size() - 1)[0],
-                                         coordinates.get(0)[1], coordinates.get(0)[0]) * 1000.0;
 
         double averageSpeedMeterPerSec = 11.11; // ~40 km/h
         double durationSeconds = totalDistanceMeters / averageSpeedMeterPerSec;
