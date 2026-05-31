@@ -2,10 +2,10 @@ spring:
   application:
     name: fleet-management-system
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/fleet_db?allowPublicKeyRetrieval=true&useSSL=false&createDatabaseIfNotExist=true}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:root}
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:h2:mem:fleet_db;MODE=MySQL;INIT=CREATE DOMAIN IF NOT EXISTS "TEXT" AS VARCHAR;DB_CLOSE_DELAY=-1}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.h2.Driver
   jpa:
     hibernate:
       ddl-auto: update
@@ -13,8 +13,9 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+        dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
+        globally_quoted_identifiers: true
   jackson:
     default-property-inclusion: non_null
 
