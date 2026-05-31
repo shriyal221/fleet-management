@@ -909,23 +909,23 @@ const DeliveriesView = memo(function DeliveriesView({
               </tr>
             </thead>
             <tbody>
-              {deliveryTasks.map((t) => (
-                <tr key={t.id}>
-                  <td>{t.id}</td>
-                  <td>{t.deliveryAddress}</td>
+              {deliveryTasks.map((task) => (
+                <tr key={task.id}>
+                  <td>{task.id}</td>
+                  <td>{task.deliveryAddress}</td>
                   <td>
-                    <strong>{t.recipientName || t('unassigned')}</strong>
-                    {t.recipientPhone && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t.recipientPhone}</div>}
+                    <strong>{task.recipientName || t('unassigned')}</strong>
+                    {task.recipientPhone && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{task.recipientPhone}</div>}
                   </td>
-                  <td><span className="gps-badge"><MapPin size={12} /> {t.latitude?.toFixed(4)}, {t.longitude?.toFixed(4)}</span></td>
-                  <td>{t.packageWeightKg || '-'}</td>
-                  <td>{formatTimeWindow(t.timeWindowStart, t.timeWindowEnd)}</td>
-                  <td><span className={statusClass(t.deliveryStatus)}>{t(t.deliveryStatus.toLowerCase())}</span></td>
-                  <td>{t.routeName || '-'}</td>
+                  <td><span className="gps-badge"><MapPin size={12} /> {task.latitude?.toFixed(4)}, {task.longitude?.toFixed(4)}</span></td>
+                  <td>{task.packageWeightKg || '-'}</td>
+                  <td>{formatTimeWindow(task.timeWindowStart, task.timeWindowEnd)}</td>
+                  <td><span className={statusClass(task.deliveryStatus)}>{t(task.deliveryStatus.toLowerCase())}</span></td>
+                  <td>{task.routeName || '-'}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      {getCandidateTransitions(t.deliveryStatus).map(st => (
-                        <button key={st} className="secondary" style={{ fontSize: '0.75rem', padding: '6px 12px', minHeight: 28 }} onClick={() => updateStatus(t.id, st)}>
+                      {getCandidateTransitions(task.deliveryStatus).map(st => (
+                        <button key={st} className="secondary" style={{ fontSize: '0.75rem', padding: '6px 12px', minHeight: 28 }} onClick={() => updateStatus(task.id, st)}>
                           {t(st.toLowerCase())}
                         </button>
                       ))}
@@ -1117,14 +1117,14 @@ const RoutesView = memo(function RoutesView({
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 16 }}>{t('planner_instructions')}</p>
             {unassignedTasks.length > 0 ? (
               <div className="stop-list" style={{ marginBottom: 20 }}>
-                {unassignedTasks.map(t => (
-                  <label key={t.id} className="stop-item" style={{ cursor: 'pointer' }}>
-                    <input type="checkbox" checked={selectedTasks.includes(t.id)} onChange={() => toggleTask(t.id)} style={{ width: 18, height: 18, minHeight: 18 }} />
+                {unassignedTasks.map(task => (
+                  <label key={task.id} className="stop-item" style={{ cursor: 'pointer' }}>
+                    <input type="checkbox" checked={selectedTasks.includes(task.id)} onChange={() => toggleTask(task.id)} style={{ width: 18, height: 18, minHeight: 18 }} />
                     <div className="stop-info">
-                      <h5>{t.deliveryAddress}</h5>
-                      <p>{t.recipientName || 'Unassigned'} - {t.packageWeightKg || 0} kg - {formatTimeWindow(t.timeWindowStart, t.timeWindowEnd)}</p>
+                      <h5>{task.deliveryAddress}</h5>
+                      <p>{task.recipientName || 'Unassigned'} - {task.packageWeightKg || 0} kg - {formatTimeWindow(task.timeWindowStart, task.timeWindowEnd)}</p>
                     </div>
-                    <span className="gps-badge"><MapPin size={12} /> {t.latitude.toFixed(4)}, {t.longitude.toFixed(4)}</span>
+                    <span className="gps-badge"><MapPin size={12} /> {task.latitude.toFixed(4)}, {task.longitude.toFixed(4)}</span>
                   </label>
                 ))}
               </div>
