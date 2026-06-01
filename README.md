@@ -56,18 +56,18 @@ HyperRoute implements a strict **3-Tier layered architecture** with horizontal s
 
 ```mermaid
 graph TD
-    subgraph Client Layer (Vite + React)
+    subgraph ClientLayer ["Client Layer (Vite + React)"]
         UI[React Glassmorphic Dashboard]
         WS_Client[SockJS + STOMP Client]
     end
 
-    subgraph API Gateway & Security Layer
+    subgraph GatewayLayer ["API Gateway & Security Layer"]
         GW[Vite API Reverse Proxy]
         SEC[Spring Security Filter Chain]
         JWT[JWT Authentication Provider]
     end
 
-    subgraph Service & Core Engine Layer
+    subgraph CoreLayer ["Service & Core Engine Layer"]
         CTRL[REST Controllers]
         OPT[Route Optimization Service]
         SIM[GPS Telemetry Simulator]
@@ -75,7 +75,7 @@ graph TD
         TWOOPT[Two-Opt Heuristics Engine]
     end
 
-    subgraph Persistence Layer
+    subgraph PersistenceLayer ["Persistence Layer"]
         DB[(PostgreSQL Database)]
         OSRM[OSRM Public Routing API]
     end
