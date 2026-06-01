@@ -116,9 +116,9 @@ function App() {
     await run(async () => {
       // 100% Backwards compatible fetch that includes backend-side searching & pagination
       const [nextVehicles, nextDrivers, nextDeliveries, nextRoutes, nextDashboard] = await Promise.all([
-        apiRequest(`/vehicles?search=${vSearch}&status=${vStatus}&page=${vPage}&size=10`, { token }),
-        apiRequest(`/drivers?search=${dSearch}&status=${dStatus}&page=${dPage}&size=10`, { token }),
-        apiRequest(`/deliveries?search=${tSearch}&status=${tStatus}&page=${tPage}&size=10`, { token }),
+        !isDriver ? apiRequest(`/vehicles?search=${vSearch}&status=${vStatus}&page=${vPage}&size=10`, { token }) : Promise.resolve([]),
+        !isDriver ? apiRequest(`/drivers?search=${dSearch}&status=${dStatus}&page=${dPage}&size=10`, { token }) : Promise.resolve([]),
+        !isDriver ? apiRequest(`/deliveries?search=${tSearch}&status=${tStatus}&page=${tPage}&size=10`, { token }) : Promise.resolve([]),
         apiRequest(`/routes?search=${rSearch}&status=${rStatus}&page=${rPage}&size=10`, { token }),
         apiRequest('/routes/dashboard', { token })
       ]);
@@ -128,7 +128,7 @@ function App() {
       setRoutes(nextRoutes);
       setDashboardData(nextDashboard);
     }, null);
-  }, [run, token, vSearch, vStatus, vPage, dSearch, dStatus, dPage, tSearch, tStatus, tPage, rSearch, rStatus, rPage]);
+  }, [run, token, vSearch, vStatus, vPage, dSearch, dStatus, dPage, tSearch, tStatus, tPage, rSearch, rStatus, rPage, isDriver]);
 
   // Handle live WebSocket coordinates via STOMP broker
   useEffect(() => {
@@ -646,6 +646,14 @@ const FleetView = memo(function FleetView({
     }, 'Driver vehicle assignment updated.');
   }
 
+  async function toggleDriverStatus(dId, currentStatus) {
+    const next = currentStatus === 'INACTIVE' ? 'AVAILABLE' : 'INACTIVE';
+    await run(async () => {
+      await apiRequest(`/drivers/${dId}/status`, { method: 'PATCH', token, body: { status: next } });
+      await loadAll();
+    }, `Driver marked ${next.toLowerCase()}.`);
+  }
+
   return (
     <div className="view-grid">
       <section className="panel wide">
@@ -735,6 +743,7 @@ const FleetView = memo(function FleetView({
             <option value="">{t('all_statuses')}</option>
             <option value="AVAILABLE">{t('available')}</option>
             <option value="ON_ROUTE">{t('on_route')}</option>
+            <option value="INACTIVE">{t('inactive')}</option>
           </select>
         </div>
 
@@ -770,11 +779,16 @@ const FleetView = memo(function FleetView({
                 <div className="fleet-card-stat"><label>{t('phone')}</label><span>{d.contactNumber || '-'}</span></div>
                 <div className="fleet-card-stat" style={{ alignItems: 'center' }}>
                   <label>{t('vehicle')}</label>
-                  <select style={{ width: 140, padding: '4px 8px', fontSize: '0.8rem', minHeight: 28 }} value={d.assignedVehicleId || ''} onChange={(e) => assignVehicle(d.id, e.target.value)}>
+                  <select style={{ width: 140, padding: '4px 8px', fontSize: '0.8rem', minHeight: 28 }} value={d.assignedVehicleId || ''} onChange={(e) => assignVehicle(d.id, e.target.value)} disabled={d.status === 'INACTIVE'}>
                     <option value="">{t('unassigned')}</option>
                     {vehicles.filter(v => v.maintenanceStatus === 'OPERATIONAL').map(v => <option key={v.id} value={v.id}>{v.licensePlate}</option>)}
                   </select>
                 </div>
+              </div>
+              <div className="fleet-card-actions">
+                <button className="secondary" onClick={() => toggleDriverStatus(d.id, d.status)} disabled={d.status === 'ON_ROUTE'}>
+                  <Users2 size={12} /> {d.status === 'INACTIVE' ? t('activate_btn') : t('archive_btn')}
+                </button>
               </div>
             </div>
           ))}

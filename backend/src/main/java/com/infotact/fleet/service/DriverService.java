@@ -107,6 +107,9 @@ public class DriverService {
             if (nextStatus == DriverStatus.AVAILABLE && !driver.isLicenseValid()) {
                 throw new IllegalArgumentException("Driver cannot be marked AVAILABLE because the license is expired.");
             }
+            if (nextStatus == DriverStatus.INACTIVE && driver.getStatus() == DriverStatus.ON_ROUTE) {
+                throw new IllegalArgumentException("Driver cannot be deactivated while ON_ROUTE.");
+            }
             driver.updateStatus(nextStatus);
             Driver saved = driverRepository.save(driver);
             auditService.log("DRIVER_STATUS_UPDATE", "Updated driver " + saved.getName() + " status to " + nextStatus);

@@ -121,7 +121,10 @@ const translations = {
     dashboard: 'Dashboard',
     fleet_registry: 'Fleet Registry',
     deliveries: 'Deliveries',
-    route_planner: 'Route Planner'
+    route_planner: 'Route Planner',
+    inactive: 'Inactive',
+    archive_btn: 'Archive',
+    activate_btn: 'Activate'
   },
   hi: {
     fleet_dispatcher: 'फ्लीट डिस्पैचर',
@@ -243,7 +246,10 @@ const translations = {
     dashboard: 'डैशबोर्ड',
     fleet_registry: 'फ्लीट रजिस्ट्री',
     deliveries: 'वितरण',
-    route_planner: 'मार्ग योजनाकार'
+    route_planner: 'मार्ग योजनाकार',
+    inactive: 'निष्क्रिय',
+    archive_btn: 'संग्रह (Archive)',
+    activate_btn: 'सक्रिय करें'
   }
 };
 
