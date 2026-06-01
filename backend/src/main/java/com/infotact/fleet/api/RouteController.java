@@ -21,6 +21,7 @@ public class RouteController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN','DISPATCHER','DRIVER')")
     public List<RouteResponse> list(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String search,
@@ -29,6 +30,7 @@ public class RouteController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','DISPATCHER','DRIVER')")
     public RouteResponse getById(@PathVariable Long id) {
         return routeService.getById(id);
     }
@@ -44,6 +46,7 @@ public class RouteController {
     }
 
     @PostMapping("/{id}/complete")
+    @PreAuthorize("hasAnyRole('ADMIN','DISPATCHER','DRIVER')")
     public RouteResponse complete(@PathVariable Long id) {
         return routeService.completeRoute(id);
     }
