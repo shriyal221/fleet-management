@@ -110,6 +110,36 @@ public class DataSeeder {
             v5.addOdometerKm(900.0);
             vehicleRepository.save(v5);
 
+            // Vehicle 6: Heavy Truck (Diesel) - Delhi Hub
+            Vehicle v6 = new Vehicle("DL-01-AB-1111", "Ashok Leyland", "Boss", 2023, 5000.0, 20.0, "DIESEL");
+            v6.updateLocation(28.7041, 77.1025);
+            v6.addOdometerKm(22000.0);
+            vehicleRepository.save(v6);
+
+            // Vehicle 7: Delivery Van (CNG) - Kolkata Hub
+            Vehicle v7 = new Vehicle("WB-02-CD-2222", "Maruti", "Super Carry", 2024, 750.0, 3.5, "CNG");
+            v7.updateLocation(22.5726, 88.3639);
+            v7.addOdometerKm(4500.0);
+            vehicleRepository.save(v7);
+
+            // Vehicle 8: Refrigerated Truck (Diesel) - Ahmedabad Hub
+            Vehicle v8 = new Vehicle("GJ-01-EF-3333", "Eicher", "Pro 2049", 2022, 2000.0, 10.0, "DIESEL");
+            v8.updateLocation(23.0225, 72.5714);
+            v8.addOdometerKm(34000.0);
+            vehicleRepository.save(v8);
+
+            // Vehicle 9: Mini Transport EV (Electric) - Jaipur Hub
+            Vehicle v9 = new Vehicle("RJ-14-GH-4444", "Mahindra", "Treo Zor", 2025, 550.0, 2.5, "ELECTRIC");
+            v9.updateLocation(26.9124, 75.7873);
+            v9.addOdometerKm(1200.0);
+            vehicleRepository.save(v9);
+
+            // Vehicle 10: Cargo Truck (Diesel) - Lucknow Hub
+            Vehicle v10 = new Vehicle("UP-32-IJ-5555", "Tata", "LPT 1918", 2023, 10000.0, 30.0, "DIESEL");
+            v10.updateLocation(26.8467, 80.9462);
+            v10.addOdometerKm(18000.0);
+            vehicleRepository.save(v10);
+
             // 4. Seed 5 Realistic Drivers
             System.out.println("Seeding professional drivers with active vehicle couplings...");
             
@@ -183,6 +213,36 @@ public class DataSeeder {
             d5.updateStatus(DriverStatus.AVAILABLE);
             driverRepository.save(d5);
 
+            // Driver 6: Amit Singh (Delhi)
+            Driver d6 = new Driver("Amit Singh", "+91 91000 11111", "amit.singh@fleetpro.com", "DL-DL-2022-11111", Instant.now().plus(500, ChronoUnit.DAYS), LocalTime.of(8, 0), LocalTime.of(18, 0));
+            d6.assignVehicle(v6);
+            d6.updateStatus(DriverStatus.AVAILABLE);
+            driverRepository.save(d6);
+
+            // Driver 7: Bimal Das (Kolkata)
+            Driver d7 = new Driver("Bimal Das", "+91 92000 22222", "bimal.das@fleetpro.com", "WB-DL-2021-22222", Instant.now().plus(400, ChronoUnit.DAYS), LocalTime.of(9, 0), LocalTime.of(19, 0));
+            d7.assignVehicle(v7);
+            d7.updateStatus(DriverStatus.AVAILABLE);
+            driverRepository.save(d7);
+
+            // Driver 8: Chirag Patel (Ahmedabad)
+            Driver d8 = new Driver("Chirag Patel", "+91 93000 33333", "chirag.patel@fleetpro.com", "GJ-DL-2020-33333", Instant.now().plus(300, ChronoUnit.DAYS), LocalTime.of(7, 0), LocalTime.of(17, 0));
+            d8.assignVehicle(v8);
+            d8.updateStatus(DriverStatus.AVAILABLE);
+            driverRepository.save(d8);
+
+            // Driver 9: Deepak Sharma (Jaipur)
+            Driver d9 = new Driver("Deepak Sharma", "+91 94000 44444", "deepak.sharma@fleetpro.com", "RJ-DL-2023-44444", Instant.now().plus(700, ChronoUnit.DAYS), LocalTime.of(10, 0), LocalTime.of(20, 0));
+            d9.assignVehicle(v9);
+            d9.updateStatus(DriverStatus.AVAILABLE);
+            driverRepository.save(d9);
+
+            // Driver 10: Eshan Tiwari (Lucknow)
+            Driver d10 = new Driver("Eshan Tiwari", "+91 95000 55555", "eshan.tiwari@fleetpro.com", "UP-DL-2019-55555", Instant.now().plus(200, ChronoUnit.DAYS), LocalTime.of(6, 0), LocalTime.of(16, 0));
+            d10.assignVehicle(v10);
+            d10.updateStatus(DriverStatus.AVAILABLE);
+            driverRepository.save(d10);
+
             // 5. Seed 25 Realistic Delivery Tasks (5 per major Indian Hub)
             System.out.println("Seeding realistic city outbound delivery tasks...");
             
@@ -250,6 +310,19 @@ public class DataSeeder {
             deliveryTaskRepository.save(tChe3);
             deliveryTaskRepository.save(tChe4);
             deliveryTaskRepository.save(tChe5);
+
+            // --- Delhi Tasks ---
+            DeliveryTask tDel1 = new DeliveryTask("Connaught Place", "Tech Store", "+91 11 1111 1111", 28.6304, 77.2177, 20.0, 0.5, Instant.now().plus(1, ChronoUnit.HOURS), Instant.now().plus(4, ChronoUnit.HOURS), "Electronics");
+            DeliveryTask tDel2 = new DeliveryTask("Karol Bagh", "Fashion Hub", "+91 11 2222 2222", 28.6515, 77.1902, 15.0, 0.3, Instant.now().plus(2, ChronoUnit.HOURS), Instant.now().plus(5, ChronoUnit.HOURS), "Garments");
+            DeliveryTask tDel3 = new DeliveryTask("Nehru Place", "Computers Ltd", "+91 11 3333 3333", 28.5494, 77.2526, 50.0, 1.2, Instant.now().plus(1, ChronoUnit.HOURS), Instant.now().plus(6, ChronoUnit.HOURS), "Laptops");
+            DeliveryTask tDel4 = new DeliveryTask("Chandni Chowk", "Spice Market", "+91 11 4444 4444", 28.6505, 77.2303, 10.0, 0.2, Instant.now().plus(3, ChronoUnit.HOURS), Instant.now().plus(7, ChronoUnit.HOURS), "Spices");
+            DeliveryTask tDel5 = new DeliveryTask("South Ex", "Luxury Goods", "+91 11 5555 5555", 28.5682, 77.2201, 8.0, 0.15, Instant.now().plus(2, ChronoUnit.HOURS), Instant.now().plus(5, ChronoUnit.HOURS), "Watches");
+            
+            deliveryTaskRepository.save(tDel1);
+            deliveryTaskRepository.save(tDel2);
+            deliveryTaskRepository.save(tDel3);
+            deliveryTaskRepository.save(tDel4);
+            deliveryTaskRepository.save(tDel5);
 
             // 6. Seed 5 Realistic Optimized Routes (1 per Hub, varying statuses)
             System.out.println("Seeding fully integrated logistics routes...");
@@ -395,6 +468,44 @@ public class DataSeeder {
             tChe4.assignToRoute(rChe, 3);
             tChe4.transitionStatus(DeliveryStatus.DISPATCHED);
             deliveryTaskRepository.save(tChe4);
+
+            // --- Route 6: Delhi Hub (PLANNED ROUTE) ---
+            Route rDel = new Route("RT-DELHI-01", v6, d6, 28.7041, 77.1025);
+            rDel.setOptimizationResult(
+                22.5,
+                65,
+                3.1,
+                String.format("[%d,%d,%d]", tDel1.getId(), tDel2.getId(), tDel3.getId())
+            );
+            rDel.setRouteScore(92.5);
+            rDel = routeRepository.save(rDel);
+            
+            tDel1.assignToRoute(rDel, 1);
+            tDel1.transitionStatus(DeliveryStatus.DISPATCHED);
+            deliveryTaskRepository.save(tDel1);
+            tDel2.assignToRoute(rDel, 2);
+            tDel2.transitionStatus(DeliveryStatus.DISPATCHED);
+            deliveryTaskRepository.save(tDel2);
+            tDel3.assignToRoute(rDel, 3);
+            tDel3.transitionStatus(DeliveryStatus.DISPATCHED);
+            deliveryTaskRepository.save(tDel3);
+
+            // Note: Since we're adding 5 routes, let's also add simple empty/planned routes for the other 4 vehicles
+            Route rKol = new Route("RT-KOLKATA-01", v7, d7, 22.5726, 88.3639);
+            rKol.setRouteScore(88.0);
+            routeRepository.save(rKol);
+
+            Route rAhm = new Route("RT-AHMEDABAD-01", v8, d8, 23.0225, 72.5714);
+            rAhm.setRouteScore(91.2);
+            routeRepository.save(rAhm);
+
+            Route rJai = new Route("RT-JAIPUR-01", v9, d9, 26.9124, 75.7873);
+            rJai.setRouteScore(95.5);
+            routeRepository.save(rJai);
+
+            Route rLuc = new Route("RT-LUCKNOW-01", v10, d10, 26.8467, 80.9462);
+            rLuc.setRouteScore(89.4);
+            routeRepository.save(rLuc);
 
             System.out.println("SUCCESS: Database Seeding is complete! Relational constraints successfully maintained.");
         };
