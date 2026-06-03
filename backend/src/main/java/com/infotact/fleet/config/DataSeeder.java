@@ -140,6 +140,32 @@ public class DataSeeder {
             v10.addOdometerKm(18000.0);
             vehicleRepository.save(v10);
 
+            // Vehicle 11-15: Additional Vehicles
+            Vehicle v11 = new Vehicle("MP-09-KL-6666", "Tata", "Yodha", 2024, 1200.0, 8.0, "DIESEL");
+            v11.updateLocation(22.7196, 75.8577);
+            v11.addOdometerKm(5000.0);
+            vehicleRepository.save(v11);
+
+            Vehicle v12 = new Vehicle("CH-01-MN-7777", "Mahindra", "Supro", 2023, 800.0, 5.0, "CNG");
+            v12.updateLocation(30.7333, 76.7794);
+            v12.addOdometerKm(15000.0);
+            vehicleRepository.save(v12);
+
+            Vehicle v13 = new Vehicle("KL-01-OP-8888", "Eicher", "Pro 2059", 2022, 3500.0, 12.0, "DIESEL");
+            v13.updateLocation(8.5241, 76.9366);
+            v13.addOdometerKm(45000.0);
+            vehicleRepository.save(v13);
+
+            Vehicle v14 = new Vehicle("PB-10-QR-9999", "Tata", "Signa 1923.K", 2025, 12000.0, 35.0, "DIESEL");
+            v14.updateLocation(30.9010, 75.8573);
+            v14.addOdometerKm(800.0);
+            vehicleRepository.save(v14);
+
+            Vehicle v15 = new Vehicle("BR-01-ST-0000", "Ashok Leyland", "Partner", 2024, 2500.0, 9.0, "CNG");
+            v15.updateLocation(25.5941, 85.1376);
+            v15.addOdometerKm(12000.0);
+            vehicleRepository.save(v15);
+
             // 4. Seed 5 Realistic Drivers
             System.out.println("Seeding professional drivers with active vehicle couplings...");
             
@@ -243,6 +269,32 @@ public class DataSeeder {
             d10.updateStatus(DriverStatus.AVAILABLE);
             driverRepository.save(d10);
 
+            // Driver 11-15: Additional Drivers
+            Driver d11 = new Driver("Manoj Tiwari", "+91 96000 66666", "manoj.tiwari@fleetpro.com", "MP-DL-2020-66666", Instant.now().plus(450, ChronoUnit.DAYS), LocalTime.of(8, 0), LocalTime.of(18, 0));
+            d11.assignVehicle(v11);
+            d11.updateStatus(DriverStatus.AVAILABLE);
+            driverRepository.save(d11);
+
+            Driver d12 = new Driver("Harpreet Singh", "+91 97000 77777", "harpreet.singh@fleetpro.com", "CH-DL-2021-77777", Instant.now().plus(350, ChronoUnit.DAYS), LocalTime.of(9, 0), LocalTime.of(19, 0));
+            d12.assignVehicle(v12);
+            d12.updateStatus(DriverStatus.AVAILABLE);
+            driverRepository.save(d12);
+
+            Driver d13 = new Driver("Ramesh Nair", "+91 98000 88888", "ramesh.nair@fleetpro.com", "KL-DL-2019-88888", Instant.now().plus(600, ChronoUnit.DAYS), LocalTime.of(7, 0), LocalTime.of(17, 0));
+            d13.assignVehicle(v13);
+            d13.updateStatus(DriverStatus.AVAILABLE);
+            driverRepository.save(d13);
+
+            Driver d14 = new Driver("Gurdeep Gill", "+91 99000 99999", "gurdeep.gill@fleetpro.com", "PB-DL-2023-99999", Instant.now().plus(800, ChronoUnit.DAYS), LocalTime.of(6, 0), LocalTime.of(16, 0));
+            d14.assignVehicle(v14);
+            d14.updateStatus(DriverStatus.AVAILABLE);
+            driverRepository.save(d14);
+
+            Driver d15 = new Driver("Nitish Kumar", "+91 90000 00000", "nitish.kumar@fleetpro.com", "BR-DL-2022-00000", Instant.now().plus(550, ChronoUnit.DAYS), LocalTime.of(10, 0), LocalTime.of(20, 0));
+            d15.assignVehicle(v15);
+            d15.updateStatus(DriverStatus.AVAILABLE);
+            driverRepository.save(d15);
+
             // 5. Seed 25 Realistic Delivery Tasks (5 per major Indian Hub)
             System.out.println("Seeding realistic city outbound delivery tasks...");
             
@@ -323,6 +375,19 @@ public class DataSeeder {
             deliveryTaskRepository.save(tDel3);
             deliveryTaskRepository.save(tDel4);
             deliveryTaskRepository.save(tDel5);
+
+            // --- Additional 5 Tasks ---
+            DeliveryTask tAdd1 = new DeliveryTask("MG Road, Indore", "Indore Traders", "+91 731 111 1111", 22.7196, 75.8577, 45.0, 1.0, Instant.now().plus(1, ChronoUnit.HOURS), Instant.now().plus(5, ChronoUnit.HOURS), "Textiles");
+            DeliveryTask tAdd2 = new DeliveryTask("Sector 17, Chandigarh", "Punjab Electronics", "+91 172 222 2222", 30.7333, 76.7794, 25.0, 0.5, Instant.now().plus(2, ChronoUnit.HOURS), Instant.now().plus(6, ChronoUnit.HOURS), "Home Appliances");
+            DeliveryTask tAdd3 = new DeliveryTask("MG Road, Trivandrum", "Kerala Spices", "+91 471 333 3333", 8.5241, 76.9366, 60.0, 1.5, Instant.now().plus(1, ChronoUnit.HOURS), Instant.now().plus(4, ChronoUnit.HOURS), "Bulk Spices");
+            DeliveryTask tAdd4 = new DeliveryTask("Ferozepur Road, Ludhiana", "Ludhiana Auto Parts", "+91 161 444 4444", 30.9010, 75.8573, 150.0, 3.0, Instant.now().plus(3, ChronoUnit.HOURS), Instant.now().plus(8, ChronoUnit.HOURS), "Engine Components");
+            DeliveryTask tAdd5 = new DeliveryTask("Fraser Road, Patna", "Bihar Books", "+91 612 555 5555", 25.5941, 85.1376, 20.0, 0.4, Instant.now().plus(2, ChronoUnit.HOURS), Instant.now().plus(5, ChronoUnit.HOURS), "Educational Materials");
+
+            deliveryTaskRepository.save(tAdd1);
+            deliveryTaskRepository.save(tAdd2);
+            deliveryTaskRepository.save(tAdd3);
+            deliveryTaskRepository.save(tAdd4);
+            deliveryTaskRepository.save(tAdd5);
 
             // 6. Seed 5 Realistic Optimized Routes (1 per Hub, varying statuses)
             System.out.println("Seeding fully integrated logistics routes...");
@@ -506,6 +571,26 @@ public class DataSeeder {
             Route rLuc = new Route("RT-LUCKNOW-01", v10, d10, 26.8467, 80.9462);
             rLuc.setRouteScore(89.4);
             routeRepository.save(rLuc);
+
+            Route rInd = new Route("RT-INDORE-01", v11, d11, 22.7196, 75.8577);
+            rInd.setRouteScore(93.0);
+            routeRepository.save(rInd);
+
+            Route rCha = new Route("RT-CHANDIGARH-01", v12, d12, 30.7333, 76.7794);
+            rCha.setRouteScore(87.5);
+            routeRepository.save(rCha);
+
+            Route rTri = new Route("RT-TRIVANDRUM-01", v13, d13, 8.5241, 76.9366);
+            rTri.setRouteScore(90.1);
+            routeRepository.save(rTri);
+
+            Route rLud = new Route("RT-LUDHIANA-01", v14, d14, 30.9010, 75.8573);
+            rLud.setRouteScore(94.8);
+            routeRepository.save(rLud);
+
+            Route rPat = new Route("RT-PATNA-01", v15, d15, 25.5941, 85.1376);
+            rPat.setRouteScore(89.9);
+            routeRepository.save(rPat);
 
             System.out.println("SUCCESS: Database Seeding is complete! Relational constraints successfully maintained.");
         };
